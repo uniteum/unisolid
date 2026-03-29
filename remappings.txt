@@ -1,2 +1,5 @@
 forge-std/=lib/forge-std/src/
 crucible/=lib/crucible/
+isolid/=lib/isolid/
+iautomation/=lib/iautomation/
+ierc20/=lib/ierc20/

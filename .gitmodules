@@ -4,3 +4,12 @@
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "lib/isolid"]
+	path = lib/isolid
+	url = https://github.com/uniteum/isolid.git
+[submodule "lib/iautomation"]
+	path = lib/iautomation
+	url = git@github.com:uniteum/iautomation.git
+[submodule "lib/ierc20"]
+	path = lib/ierc20
+	url = https://github.com/uniteum/ierc20.git
