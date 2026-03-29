@@ -13,3 +13,6 @@
 [submodule "lib/ierc20"]
 	path = lib/ierc20
 	url = https://github.com/uniteum/ierc20.git
+[submodule "lib/iuniswap"]
+	path = lib/iuniswap
+	url = git@github.com:uniteum/iuniswap
