@@ -1,0 +1,11 @@
+{
+  "lib/crucible": {
+    "rev": "581cac4880f0336c66c0349e64ba0dcd9c2a11b5"
+  },
+  "lib/forge-std": {
+    "tag": {
+      "name": "v1.15.0",
+      "rev": "0844d7e1fc5e60d77b68e469bff60265f236c398"
+    }
+  }
+}

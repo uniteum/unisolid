@@ -1,0 +1,42 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn.lock
+.pnpm-store/
+.pnp.*
+
+# Solidity/Hardhat/Foundry
+artifacts/
+cache/
+coverage/
+typechain/
+typechain-types/
+forge-out/
+forge-cache/
+forge-artifacts/
+ds-test/
+
+# Frontend (React/Next.js, if applicable)
+.next/
+broadcast/
+out/
+dist/
+.vercel/
+.env.local
+.env.production
+.env.development
+
+# The Graph (Subgraph indexing)
+generated/
+abis/
+build/
+subgraph.yaml.lock
+
+# Deployment files
+deployments/
+addresses.json
+
+# Miscellaneous
+.DS_Store
+*.log
+*.temp

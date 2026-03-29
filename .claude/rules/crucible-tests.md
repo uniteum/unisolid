@@ -1,0 +1,1 @@
+../../lib/crucible/.claude/rules/crucible-tests.md

@@ -1,0 +1,1 @@
+../../lib/crucible/.claude/rules/solidity.md
