@@ -4,7 +4,7 @@ pragma solidity ^0.8.30;
 import {IAutomation} from "iautomation/iautomation.sol";
 import {ISolid} from "isolid/ISolid.sol";
 import {IERC20} from "ierc20/IERC20.sol";
-import {IUniswapV2Router} from "./IUniswapV2.sol";
+import {IUniswapV2Router01} from "iuniswap/IUniswapV2Router01.sol";
 
 /**
  * @notice Arbitrage bot between Solid AMM and Uniswap V2.
@@ -28,7 +28,7 @@ contract UniSolid is IAutomation {
      */
     struct Params {
         ISolid solid;
-        IUniswapV2Router router;
+        IUniswapV2Router01 router;
         uint256 ethIn;
         uint256 minProfit;
     }
@@ -214,5 +214,54 @@ contract UniSolid is IAutomation {
      */
     function recover(IERC20 token, uint256 amount) external onlyOwner {
         require(token.transfer(owner, amount));
+    }
+
+    /**
+     * @notice Add liquidity to a Uniswap V2 ETH/token pair
+     * @dev LP tokens are held by this contract. Use recover() to extract them if needed.
+     * @param router The Uniswap V2 router
+     * @param token The token to pair with ETH
+     * @param amountTokenDesired Maximum tokens to deposit
+     * @param amountTokenMin Minimum tokens to deposit (slippage)
+     * @param amountETHMin Minimum ETH to deposit (slippage)
+     * @return amountToken Actual tokens deposited
+     * @return amountETH Actual ETH deposited
+     * @return liquidity LP tokens received
+     */
+    function addLiquidityETH(
+        IUniswapV2Router01 router,
+        address token,
+        uint256 amountTokenDesired,
+        uint256 amountTokenMin,
+        uint256 amountETHMin
+    ) external payable onlyOwner returns (uint256 amountToken, uint256 amountETH, uint256 liquidity) {
+        IERC20(token).approve(address(router), amountTokenDesired);
+        (amountToken, amountETH, liquidity) = router.addLiquidityETH{value: msg.value}(
+            token, amountTokenDesired, amountTokenMin, amountETHMin, address(this), block.timestamp
+        );
+    }
+
+    /**
+     * @notice Remove liquidity from a Uniswap V2 ETH/token pair
+     * @param router The Uniswap V2 router
+     * @param token The token paired with ETH
+     * @param pair The LP token address
+     * @param liquidity Amount of LP tokens to burn
+     * @param amountTokenMin Minimum tokens to receive (slippage)
+     * @param amountETHMin Minimum ETH to receive (slippage)
+     * @return amountToken Tokens received
+     * @return amountETH ETH received
+     */
+    function removeLiquidityETH(
+        IUniswapV2Router01 router,
+        address token,
+        address pair,
+        uint256 liquidity,
+        uint256 amountTokenMin,
+        uint256 amountETHMin
+    ) external onlyOwner returns (uint256 amountToken, uint256 amountETH) {
+        IERC20(pair).approve(address(router), liquidity);
+        (amountToken, amountETH) =
+            router.removeLiquidityETH(token, liquidity, amountTokenMin, amountETHMin, address(this), block.timestamp);
     }
 }

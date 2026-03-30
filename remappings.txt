@@ -3,3 +3,4 @@ crucible/=lib/crucible/
 isolid/=lib/isolid/
 iautomation/=lib/iautomation/
 ierc20/=lib/ierc20/
+iuniswap/=lib/iuniswap/
