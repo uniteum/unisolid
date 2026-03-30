@@ -88,9 +88,11 @@ contract MockSolid {
  * @dev Also acts as its own LP token for testing (pair == router)
  */
 contract MockRouter {
+    // forge-lint: disable-next-line(screaming-snake-case-immutable)
     address public immutable weth;
     address public token;
 
+    // forge-lint: disable-next-line(mixed-case-variable)
     uint256 public reserveETH;
     uint256 public reserveToken;
 
@@ -126,6 +128,7 @@ contract MockRouter {
         }
     }
 
+    // forge-lint: disable-next-line(mixed-case-function)
     function swapExactETHForTokens(uint256, address[] calldata, address to, uint256)
         external
         payable
@@ -138,9 +141,11 @@ contract MockRouter {
         reserveETH += msg.value;
         reserveToken -= amounts[1];
 
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         MockSolid(payable(token)).transfer(to, amounts[1]);
     }
 
+    // forge-lint: disable-next-line(mixed-case-function)
     function swapExactTokensForETH(uint256 amountIn, uint256, address[] calldata, address to, uint256)
         external
         returns (uint256[] memory amounts)
@@ -149,6 +154,7 @@ contract MockRouter {
         amounts[0] = amountIn;
         amounts[1] = _getAmountOut(amountIn, reserveToken, reserveETH);
 
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         IERC20(token).transferFrom(msg.sender, address(this), amountIn);
         reserveToken += amountIn;
         reserveETH -= amounts[1];
@@ -157,15 +163,18 @@ contract MockRouter {
         require(ok);
     }
 
+    // forge-lint: disable-next-line(mixed-case-function)
     function addLiquidityETH(address token_, uint256 amountTokenDesired, uint256, uint256, address to, uint256)
         external
         payable
+        // forge-lint: disable-next-line(mixed-case-variable)
         returns (uint256 amountToken, uint256 amountETH, uint256 liquidity)
     {
         amountToken = amountTokenDesired;
         amountETH = msg.value;
         liquidity = msg.value;
 
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         IERC20(token_).transferFrom(msg.sender, address(this), amountToken);
         reserveETH += amountETH;
         reserveToken += amountToken;
@@ -173,8 +182,10 @@ contract MockRouter {
         lpBalanceOf[to] += liquidity;
     }
 
+    // forge-lint: disable-next-line(mixed-case-function)
     function removeLiquidityETH(address token_, uint256 liquidity_, uint256, uint256, address to, uint256)
         external
+        // forge-lint: disable-next-line(mixed-case-variable)
         returns (uint256 amountToken, uint256 amountETH)
     {
         amountETH = liquidity_ * reserveETH / lpSupply;
@@ -186,6 +197,7 @@ contract MockRouter {
         reserveETH -= amountETH;
         reserveToken -= amountToken;
 
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         IERC20(token_).transfer(to, amountToken);
         (bool ok,) = to.call{value: amountETH}("");
         require(ok);
@@ -263,6 +275,7 @@ contract UniSolidTest is BaseTest {
         router.setPool(address(solid), E, S);
 
         // Give the router tokens to trade with
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         solid.transfer(address(router), solid.balanceOf(address(this)));
 
         // Fund arb contract
@@ -282,6 +295,7 @@ contract UniSolidTest is BaseTest {
         // Give router some tokens to sell
         vm.deal(address(this), 1 ether);
         uint256 tokens = solid.buy{value: 1 ether}();
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         solid.transfer(address(router), tokens);
 
         // Fund arb contract
@@ -305,6 +319,7 @@ contract UniSolidTest is BaseTest {
         solid.buy{value: 10 ether}();
 
         // Uniswap is cheap — lots of tokens, little ETH
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         solid.transfer(address(router), solid.balanceOf(address(this)));
         vm.deal(address(router), 1 ether);
         router.setPool(address(solid), 1 ether, 100_000_000 ether);
@@ -338,6 +353,7 @@ contract UniSolidTest is BaseTest {
 
         vm.deal(address(this), 1 ether);
         uint256 tokens = solid.buy{value: 1 ether}();
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         solid.transfer(address(router), tokens);
 
         vm.deal(address(arb), 1 ether);
@@ -372,6 +388,7 @@ contract UniSolidTest is BaseTest {
         // Buy tokens on Solid and transfer to arb contract
         vm.deal(address(this), 2 ether);
         uint256 tokens = solid.buy{value: 1 ether}();
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         solid.transfer(address(arb), tokens);
 
         // Add liquidity: arb sends ETH + tokens to router
@@ -386,6 +403,7 @@ contract UniSolidTest is BaseTest {
         // Setup: buy tokens, transfer to arb, add liquidity
         vm.deal(address(this), 2 ether);
         uint256 tokens = solid.buy{value: 1 ether}();
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         solid.transfer(address(arb), tokens);
 
         vm.deal(address(arb), 1 ether);

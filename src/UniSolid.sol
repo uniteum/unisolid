@@ -228,12 +228,15 @@ contract UniSolid is IAutomation {
      * @return amountETH Actual ETH deposited
      * @return liquidity LP tokens received
      */
+    // forge-lint: disable-next-line(mixed-case-function)
     function addLiquidityETH(
         IUniswapV2Router01 router,
         address token,
         uint256 amountTokenDesired,
         uint256 amountTokenMin,
+        // forge-lint: disable-next-line(mixed-case-variable)
         uint256 amountETHMin
+        // forge-lint: disable-next-line(mixed-case-variable)
     ) external payable onlyOwner returns (uint256 amountToken, uint256 amountETH, uint256 liquidity) {
         IERC20(token).approve(address(router), amountTokenDesired);
         (amountToken, amountETH, liquidity) = router.addLiquidityETH{value: msg.value}(
@@ -252,13 +255,16 @@ contract UniSolid is IAutomation {
      * @return amountToken Tokens received
      * @return amountETH ETH received
      */
+    // forge-lint: disable-next-line(mixed-case-function)
     function removeLiquidityETH(
         IUniswapV2Router01 router,
         address token,
         address pair,
         uint256 liquidity,
         uint256 amountTokenMin,
+        // forge-lint: disable-next-line(mixed-case-variable)
         uint256 amountETHMin
+        // forge-lint: disable-next-line(mixed-case-variable)
     ) external onlyOwner returns (uint256 amountToken, uint256 amountETH) {
         IERC20(pair).approve(address(router), liquidity);
         (amountToken, amountETH) =
