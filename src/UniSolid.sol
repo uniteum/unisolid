@@ -5,6 +5,7 @@ import {IAutomation} from "iautomation/iautomation.sol";
 import {ISolid} from "isolid/ISolid.sol";
 import {IERC20} from "ierc20/IERC20.sol";
 import {IUniswapV2Router01} from "iuniswap/IUniswapV2Router01.sol";
+import {Clones} from "clones/Clones.sol";
 
 /**
  * @notice Arbitrage bot between Solid AMM and Uniswap V2.
@@ -12,11 +13,16 @@ import {IUniswapV2Router01} from "iuniswap/IUniswapV2Router01.sol";
  * Implements Chainlink Automation to detect and execute price discrepancies
  * between a Solid token's built-in AMM and a Uniswap V2 pair for the same token.
  *
+ * The factory (PROTO) is Bitsy — permissionless, deterministic, cloned.
+ * Each clone is owned by its deployer and is NOT Bitsy (owner controls capital).
+ *
  * Two arbitrage directions:
  *   A) Solid cheap:   buy on Solid (ETH → token), sell on Uniswap (token → ETH)
  *   B) Uniswap cheap: buy on Uniswap (ETH → token), sell on Solid (token → ETH)
  */
 contract UniSolid is IAutomation {
+    UniSolid public immutable PROTO = this;
+
     address public owner;
 
     /**
@@ -42,26 +48,23 @@ contract UniSolid is IAutomation {
         UniswapToSolid
     }
 
+    event Make(UniSolid indexed clone, address indexed owner);
     event Arb(ISolid indexed solid, Direction direction, uint256 ethIn, uint256 profit);
 
-    error NotOwner();
+    error Unauthorized();
     error NoProfitableArb();
     error InsufficientBalance();
 
     modifier onlyOwner() {
-        _onlyOwner();
+        if (msg.sender != owner) revert Unauthorized();
         _;
     }
 
-    function _onlyOwner() internal view {
-        if (msg.sender != owner) revert NotOwner();
-    }
-
-    constructor() {
-        owner = msg.sender;
-    }
+    constructor() {}
 
     receive() external payable {}
+
+    // ---- Automation ----
 
     /**
      * @notice Check whether a profitable arbitrage exists
@@ -193,6 +196,8 @@ contract UniSolid is IAutomation {
         p.solid.sell(tokensOut);
     }
 
+    // ---- Owner operations (not Bitsy) ----
+
     /**
      * @notice Deposit ETH into the contract for arbitrage capital
      */
@@ -269,5 +274,48 @@ contract UniSolid is IAutomation {
         IERC20(pair).approve(address(router), liquidity);
         (amountToken, amountETH) =
             router.removeLiquidityETH(token, liquidity, amountTokenMin, amountETHMin, address(this), block.timestamp);
+    }
+
+    // ---- Factory (Bitsy) ----
+
+    /**
+     * @notice Predict the deterministic address for an owner's clone.
+     * @param owner_ The owner of the clone
+     * @return exists True if the clone is already deployed
+     * @return home The deterministic clone address
+     * @return salt The CREATE2 salt
+     */
+    function made(address owner_) public view returns (bool exists, address home, bytes32 salt) {
+        salt = keccak256(abi.encode(owner_));
+        home = Clones.predictDeterministicAddress(address(PROTO), salt, address(PROTO));
+        exists = home.code.length > 0;
+    }
+
+    /**
+     * @notice Deploy a deterministic clone for the caller.
+     *         Idempotent — returns the existing clone if already deployed.
+     * @return clone The deployed (or existing) clone
+     */
+    function make() external returns (UniSolid clone) {
+        if (this != PROTO) {
+            clone = PROTO.make();
+        } else {
+            (bool exists, address home, bytes32 salt) = made(msg.sender);
+            clone = UniSolid(payable(home));
+            if (!exists) {
+                home = Clones.cloneDeterministic(address(PROTO), salt, 0);
+                UniSolid(payable(home)).zzInit(msg.sender);
+                emit Make(clone, msg.sender);
+            }
+        }
+    }
+
+    /**
+     * @notice Initializer called by PROTO on a freshly deployed clone.
+     * @param owner_ The owner of the clone
+     */
+    function zzInit(address owner_) public {
+        if (msg.sender != address(PROTO)) revert Unauthorized();
+        owner = owner_;
     }
 }

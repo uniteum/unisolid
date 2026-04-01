@@ -11,6 +11,7 @@ import {console} from "forge-std/Test.sol";
 import {UnswapV2Router01Mock} from "./UnswapV2Router01Mock.sol";
 
 contract UniSolidTest is BaseTest {
+    UniSolid proto;
     UniSolid arb;
     ISolid solid;
     UnswapV2Router01Mock router;
@@ -23,7 +24,8 @@ contract UniSolidTest is BaseTest {
 
         router = new UnswapV2Router01Mock(address(0xE77));
 
-        arb = new UniSolid();
+        proto = new UniSolid();
+        arb = proto.make();
     }
 
     function _params(uint256 ethIn, uint256 minProfit) internal view returns (UniSolid.Params memory) {
@@ -144,7 +146,7 @@ contract UniSolidTest is BaseTest {
 
         // Non-owner cannot withdraw
         vm.prank(address(0xdead));
-        vm.expectRevert(UniSolid.NotOwner.selector);
+        vm.expectRevert(UniSolid.Unauthorized.selector);
         arb.withdraw(1 ether);
 
         // Owner can withdraw
@@ -155,7 +157,7 @@ contract UniSolidTest is BaseTest {
 
     function test_OnlyOwnerRecover() public {
         vm.prank(address(0xdead));
-        vm.expectRevert(UniSolid.NotOwner.selector);
+        vm.expectRevert(UniSolid.Unauthorized.selector);
         arb.recover(IERC20(address(solid)), 1 ether);
     }
 
@@ -196,14 +198,57 @@ contract UniSolidTest is BaseTest {
 
     function test_OnlyOwnerAddLiquidity() public {
         vm.prank(address(0xdead));
-        vm.expectRevert(UniSolid.NotOwner.selector);
+        vm.expectRevert(UniSolid.Unauthorized.selector);
         arb.addLiquidityETH(IUniswapV2Router01(address(router)), address(solid), 0, 0, 0);
     }
 
     function test_OnlyOwnerRemoveLiquidity() public {
         vm.prank(address(0xdead));
-        vm.expectRevert(UniSolid.NotOwner.selector);
+        vm.expectRevert(UniSolid.Unauthorized.selector);
         arb.removeLiquidityETH(IUniswapV2Router01(address(router)), address(solid), address(router), 0, 0, 0);
+    }
+
+    // ---- Factory tests ----
+
+    function test_MadePredictsAddress() public view {
+        (bool exists, address home,) = proto.made(address(this));
+        assertTrue(exists, "clone should exist");
+        assertEq(home, address(arb), "predicted address should match clone");
+    }
+
+    function test_MakeIdempotent() public {
+        UniSolid second = proto.make();
+        assertEq(address(second), address(arb), "second make should return same clone");
+    }
+
+    function test_MakeFromClone() public {
+        // Calling make() on a clone forwards to proto.
+        // msg.sender becomes the clone itself, so it gets its own clone.
+        UniSolid cloneOfClone = arb.make();
+        (, address expected,) = proto.made(address(arb));
+        assertEq(address(cloneOfClone), expected, "make via clone should forward to proto");
+        assertEq(cloneOfClone.owner(), address(arb), "clone-of-clone owner should be the calling clone");
+    }
+
+    function test_MakeDifferentOwners() public {
+        address other = address(0xBEEF);
+        vm.prank(other);
+        UniSolid otherArb = proto.make();
+        assertTrue(address(otherArb) != address(arb), "different owners should get different clones");
+        assertEq(otherArb.owner(), other, "clone owner should be caller");
+    }
+
+    function test_CloneOwnerIsDeployer() public view {
+        assertEq(arb.owner(), address(this), "clone owner should be test contract");
+    }
+
+    function test_ProtoHasNoOwner() public view {
+        assertEq(proto.owner(), address(0), "proto should have no owner");
+    }
+
+    function test_ZzInitOnlyCallableByProto() public {
+        vm.expectRevert(UniSolid.Unauthorized.selector);
+        arb.zzInit(address(this));
     }
 
     receive() external payable {}
