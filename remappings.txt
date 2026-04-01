@@ -1,6 +1,10 @@
 forge-std/=lib/forge-std/src/
 crucible/=lib/crucible/
-isolid/=lib/isolid/
+clones/=lib/clones/
+erc20/=lib/erc20/
 iautomation/=lib/iautomation/
 ierc20/=lib/ierc20/
+isolid/=lib/isolid/
 iuniswap/=lib/iuniswap/
+reentrancy/=lib/reentrancy/
+solid/=lib/solid/src/

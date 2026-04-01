@@ -16,3 +16,15 @@
 [submodule "lib/iuniswap"]
 	path = lib/iuniswap
 	url = git@github.com:uniteum/iuniswap
+[submodule "lib/erc20"]
+	path = lib/erc20
+	url = https://github.com/uniteum/erc20.git
+[submodule "lib/clones"]
+	path = lib/clones
+	url = https://github.com/uniteum/clones.git
+[submodule "lib/reentrancy"]
+	path = lib/reentrancy
+	url = https://github.com/uniteum/reentrancy.git
+[submodule "lib/solid"]
+	path = lib/solid
+	url = https://github.com/uniteum/solid.git

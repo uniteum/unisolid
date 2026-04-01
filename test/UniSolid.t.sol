@@ -3,85 +3,11 @@ pragma solidity ^0.8.30;
 
 import {BaseTest} from "crucible/test/Base.t.sol";
 import {UniSolid} from "../src/UniSolid.sol";
+import {Solid} from "solid/Solid.sol";
 import {ISolid} from "isolid/ISolid.sol";
 import {IUniswapV2Router01} from "iuniswap/IUniswapV2Router01.sol";
 import {IERC20} from "ierc20/IERC20.sol";
 import {console} from "forge-std/Test.sol";
-
-/**
- * @notice Mock Solid that implements a simple constant-product AMM
- */
-contract MockSolid {
-    string public name = "Mock Solid";
-    string public symbol = "MS";
-    uint8 public decimals = 18;
-
-    uint256 public poolS; // tokens in pool
-    uint256 public poolE; // virtual ETH in pool (includes +1 ether)
-
-    mapping(address => uint256) public balanceOf;
-    mapping(address => mapping(address => uint256)) public allowance;
-
-    constructor() {
-        poolS = 602_214_076 ether; // ~Avogadro scaled
-        poolE = 1 ether; // virtual 1 ETH, 0 actual
-        balanceOf[address(this)] = poolS;
-    }
-
-    function pool() external view returns (uint256 S, uint256 E) {
-        return (poolS, poolE);
-    }
-
-    function buys(uint256 e) public view returns (uint256 s) {
-        s = poolS - poolS * poolE / (poolE + e);
-    }
-
-    function buy() external payable returns (uint256 s) {
-        s = buys(msg.value);
-        poolE += msg.value;
-        poolS -= s;
-        balanceOf[address(this)] -= s;
-        balanceOf[msg.sender] += s;
-        return s;
-    }
-
-    function sells(uint256 s) public view returns (uint256 e) {
-        e = poolE - (poolE * poolS + poolE - 1) / (poolS + s);
-    }
-
-    function sell(uint256 s) external returns (uint256 e) {
-        e = sells(s);
-        poolS += s;
-        poolE -= e;
-        balanceOf[msg.sender] -= s;
-        balanceOf[address(this)] += s;
-        (bool ok,) = msg.sender.call{value: e}("");
-        require(ok);
-        return e;
-    }
-
-    function transfer(address to, uint256 amount) external returns (bool) {
-        balanceOf[msg.sender] -= amount;
-        balanceOf[to] += amount;
-        return true;
-    }
-
-    function approve(address spender, uint256 amount) external returns (bool) {
-        allowance[msg.sender][spender] = amount;
-        return true;
-    }
-
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
-        allowance[from][msg.sender] -= amount;
-        balanceOf[from] -= amount;
-        balanceOf[to] += amount;
-        return true;
-    }
-
-    receive() external payable {
-        poolE += msg.value;
-    }
-}
 
 /**
  * @notice Mock Uniswap V2 Router with a simple constant-product pool
@@ -142,7 +68,7 @@ contract MockRouter {
         reserveToken -= amounts[1];
 
         // forge-lint: disable-next-line(erc20-unchecked-transfer)
-        MockSolid(payable(token)).transfer(to, amounts[1]);
+        IERC20(token).transfer(to, amounts[1]);
     }
 
     // forge-lint: disable-next-line(mixed-case-function)
@@ -237,7 +163,7 @@ contract MockWETH {
 
 contract UniSolidTest is BaseTest {
     UniSolid arb;
-    MockSolid solid;
+    ISolid solid;
     MockRouter router;
     MockWETH weth;
 
@@ -245,7 +171,10 @@ contract UniSolidTest is BaseTest {
         super.setUp();
 
         weth = new MockWETH();
-        solid = new MockSolid();
+
+        Solid nothing = new Solid(602_214_076 ether);
+        solid = nothing.make("Mock Solid", "MS");
+
         router = new MockRouter(address(weth));
 
         arb = new UniSolid();
