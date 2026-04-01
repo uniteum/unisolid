@@ -43,6 +43,21 @@ against the same contract.
 - `withdraw(amount)` — withdraw ETH
 - `recover(token, amount)` — recover ERC-20 tokens
 
+## Scripts
+
+### `script/deployUniswapLookup.sh`
+
+Populates the on-chain Uniswap V2 Router lookup contract with chain ID →
+router address mappings from `io/prod/UniswapV2Router.json`.
+
+Requires environment variables:
+- `$chain` — RPC URL
+- `$tx_key` — private key for the transaction
+
+```bash
+chain=https://rpc.example.com tx_key=0x... bash script/deployUniswapLookup.sh
+```
+
 ## Build
 
 ```bash
