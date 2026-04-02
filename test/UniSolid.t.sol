@@ -314,7 +314,7 @@ contract UniSolidTest is BaseTest {
 
     function test_ZzInitOnlyCallableByProto() public {
         vm.expectRevert(UniSolid.Unauthorized.selector);
-        arb.zzInit(address(this), solid, address(router));
+        arb.zzInit(address(this), solid);
     }
 
     receive() external payable {}

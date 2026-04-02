@@ -15,6 +15,7 @@ interface IUniswapV2Factory {
 
 interface IUniswapV2Pair {
     function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+
     function token0() external view returns (address);
 }
 
@@ -167,7 +168,9 @@ contract UniSolid is IAutomation {
                 uint256 den = T * 1000 + 997 * S;
                 ethInA = num / den;
                 if (ethInA > p.maxEthIn) ethInA = p.maxEthIn;
-                if (ethInA > 0) profitA = _profitSolidToUniswap(ethInA, S, E, T, W);
+                if (ethInA > 0) {
+                    profitA = _profitSolidToUniswap(ethInA, S, E, T, W);
+                }
             }
         }
 
@@ -185,7 +188,9 @@ contract UniSolid is IAutomation {
                 uint256 den = S * 1000 + 997 * T;
                 ethInB = num / den;
                 if (ethInB > p.maxEthIn) ethInB = p.maxEthIn;
-                if (ethInB > 0) profitB = _profitUniswapToSolid(ethInB, S, E, T, W);
+                if (ethInB > 0) {
+                    profitB = _profitUniswapToSolid(ethInB, S, E, T, W);
+                }
             }
         }
 
@@ -206,11 +211,11 @@ contract UniSolid is IAutomation {
         returns (uint256)
     {
         // Tokens from Solid: S * x / (E + x)
-        uint256 tokens = S * x / (E + x);
+        uint256 tokens = (S * x) / (E + x);
         if (tokens == 0) return 0;
 
         // ETH from Uniswap (0.3% fee): W * 997 * tokens / (T * 1000 + 997 * tokens)
-        uint256 ethBack = W * 997 * tokens / (T * 1000 + 997 * tokens);
+        uint256 ethBack = (W * 997 * tokens) / (T * 1000 + 997 * tokens);
         if (ethBack > x) return ethBack - x;
         return 0;
     }
@@ -224,11 +229,11 @@ contract UniSolid is IAutomation {
         returns (uint256)
     {
         // Tokens from Uniswap (0.3% fee): T * 997 * x / (W * 1000 + 997 * x)
-        uint256 tokens = T * 997 * x / (W * 1000 + 997 * x);
+        uint256 tokens = (T * 997 * x) / (W * 1000 + 997 * x);
         if (tokens == 0) return 0;
 
         // ETH from Solid: E * tokens / (S + tokens)
-        uint256 ethBack = E * tokens / (S + tokens);
+        uint256 ethBack = (E * tokens) / (S + tokens);
         if (ethBack > x) return ethBack - x;
         return 0;
     }
@@ -374,10 +379,8 @@ contract UniSolid is IAutomation {
             (bool exists, address home, bytes32 salt) = made(msg.sender, solid_);
             clone = UniSolid(payable(home));
             if (!exists) {
-                address pair_ = FACTORY.getPair(address(solid_), WETH);
-                if (pair_ == address(0)) revert NoPair();
                 home = Clones.cloneDeterministic(address(PROTO), salt, 0);
-                UniSolid(payable(home)).zzInit(msg.sender, solid_, pair_);
+                UniSolid(payable(home)).zzInit(msg.sender, solid_);
                 emit Make(clone, msg.sender, solid_);
             }
         }
@@ -387,10 +390,11 @@ contract UniSolid is IAutomation {
      * @notice Initializer called by PROTO on a freshly deployed clone.
      * @param owner_ The owner of the clone
      * @param solid_ The Solid token
-     * @param pair_ The Uniswap V2 pair address
      */
-    function zzInit(address owner_, ISolid solid_, address pair_) public {
+    function zzInit(address owner_, ISolid solid_) public {
         if (msg.sender != address(PROTO)) revert Unauthorized();
+        address pair_ = FACTORY.getPair(address(solid_), WETH);
+        if (pair_ == address(0)) revert NoPair();
         owner = owner_;
         solid = solid_;
         pair = pair_;
