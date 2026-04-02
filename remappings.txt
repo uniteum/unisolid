@@ -8,4 +8,6 @@ isolid/=lib/isolid/
 iuniswap/=lib/iuniswap/
 reentrancy/=lib/reentrancy/
 ilookup/=lib/ilookup/
+math/=lib/math/
+panic/=lib/panic/
 solid/=lib/solid/src/

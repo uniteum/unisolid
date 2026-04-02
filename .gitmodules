@@ -31,3 +31,9 @@
 [submodule "lib/ilookup"]
 	path = lib/ilookup
 	url = git@github.com:uniteum/ilookup.git
+[submodule "lib/math"]
+	path = lib/math
+	url = https://github.com/uniteum/math.git
+[submodule "lib/panic"]
+	path = lib/panic
+	url = https://github.com/uniteum/panic.git
