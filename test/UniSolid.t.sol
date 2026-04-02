@@ -25,12 +25,15 @@ contract UniSolidTest is BaseTest {
 
         router = new UnswapV2Router01Mock(address(0xE77));
 
+        // Pair must exist before make(solid) — set up a minimal pool
+        router.setPool(address(solid), 1, 1);
+
         proto = new UniSolid(IAddressLookup(address(new AddressLookupMock(address(router)))));
-        arb = proto.make();
+        arb = proto.make(solid);
     }
 
-    function _params(uint256 ethIn, uint256 minProfit) internal view returns (UniSolid.Params memory) {
-        return UniSolid.Params({solid: ISolid(address(solid)), ethIn: ethIn, minProfit: minProfit});
+    function _params(uint256 minProfit, uint256 maxEthIn) internal pure returns (UniSolid.Params memory) {
+        return UniSolid.Params({minProfit: minProfit, maxEthIn: maxEthIn});
     }
 
     function _encode(UniSolid.Params memory p) internal pure returns (bytes memory) {
@@ -54,7 +57,7 @@ contract UniSolidTest is BaseTest {
         // Fund arb contract
         vm.deal(address(arb), 1 ether);
 
-        UniSolid.Params memory p = _params(0.1 ether, 0.001 ether);
+        UniSolid.Params memory p = _params(0.001 ether, 1 ether);
         (bool needed,) = arb.checkUpkeep(_encode(p));
         assertFalse(needed, "should not arb when prices equal");
     }
@@ -74,7 +77,7 @@ contract UniSolidTest is BaseTest {
         // Fund arb contract
         vm.deal(address(arb), 1 ether);
 
-        UniSolid.Params memory p = _params(0.1 ether, 0);
+        UniSolid.Params memory p = _params(0, 1 ether);
         (bool needed, bytes memory performData) = arb.checkUpkeep(_encode(p));
 
         if (needed) {
@@ -101,7 +104,7 @@ contract UniSolidTest is BaseTest {
         vm.deal(address(arb), 0.5 ether);
         vm.deal(address(solid), 5 ether);
 
-        UniSolid.Params memory p = _params(0.1 ether, 0);
+        UniSolid.Params memory p = _params(0, 0.5 ether);
         (bool needed, bytes memory performData) = arb.checkUpkeep(_encode(p));
 
         if (needed) {
@@ -113,9 +116,13 @@ contract UniSolidTest is BaseTest {
         }
     }
 
-    function test_NoArbWithInsufficientBalance() public view {
+    function test_NoArbWithInsufficientBalance() public {
+        // Set up a price discrepancy so there would be an arb
+        vm.deal(address(router), 10 ether);
+        router.setPool(address(solid), 10 ether, 1_000_000 ether);
+
         // Arb contract has no ETH
-        UniSolid.Params memory p = _params(1 ether, 0);
+        UniSolid.Params memory p = _params(0, 1 ether);
         (bool needed,) = arb.checkUpkeep(_encode(p));
         assertFalse(needed, "should not arb without balance");
     }
@@ -132,9 +139,69 @@ contract UniSolidTest is BaseTest {
         vm.deal(address(arb), 1 ether);
 
         // Set impossibly high min profit
-        UniSolid.Params memory p = _params(0.1 ether, 1000 ether);
+        UniSolid.Params memory p = _params(1000 ether, 1 ether);
         (bool needed,) = arb.checkUpkeep(_encode(p));
         assertFalse(needed, "should not arb below min profit");
+    }
+
+    function test_OptimalSizeBetterThanFixed() public {
+        // Set up a moderate price discrepancy
+        vm.deal(address(this), 3 ether);
+        solid.buy{value: 3 ether}();
+
+        // Uniswap cheaper than Solid
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
+        solid.transfer(address(router), solid.balanceOf(address(this)));
+        vm.deal(address(router), 1 ether);
+        router.setPool(address(solid), 1 ether, 50_000_000 ether);
+
+        vm.deal(address(solid), 5 ether);
+
+        // Get optimal ethIn from checkUpkeep
+        UniSolid.Params memory p = _params(0, 10 ether);
+        vm.deal(address(arb), 10 ether);
+        (bool needed, bytes memory performData) = arb.checkUpkeep(_encode(p));
+        assertTrue(needed, "should find arb");
+
+        (,, uint256 optimalEthIn) = abi.decode(performData, (UniSolid.Params, UniSolid.Direction, uint256));
+        assertGt(optimalEthIn, 0, "optimal ethIn should be positive");
+        console.log("Optimal ethIn:", optimalEthIn);
+    }
+
+    function test_MaxEthInCapsTradeSize() public {
+        // Large discrepancy
+        vm.deal(address(router), 10 ether);
+        router.setPool(address(solid), 10 ether, 1_000_000 ether);
+
+        vm.deal(address(this), 1 ether);
+        uint256 tokens = solid.buy{value: 1 ether}();
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
+        solid.transfer(address(router), tokens);
+
+        vm.deal(address(arb), 10 ether);
+
+        // Cap at 0.01 ETH
+        UniSolid.Params memory p = _params(0, 0.01 ether);
+        (bool needed, bytes memory performData) = arb.checkUpkeep(_encode(p));
+
+        if (needed) {
+            (,, uint256 ethIn) = abi.decode(performData, (UniSolid.Params, UniSolid.Direction, uint256));
+            assertLe(ethIn, 0.01 ether, "ethIn should respect maxEthIn cap");
+        }
+    }
+
+    function test_StoredSolidAndPair() public view {
+        assertEq(address(arb.solid()), address(solid), "clone should store solid");
+        assertEq(arb.pair(), address(router), "clone should store pair");
+    }
+
+    function test_NoPairReverts() public {
+        Solid nothing2 = new Solid(602_214_076 ether);
+        ISolid solid2 = nothing2.make("No Pair", "NP");
+
+        // No Uniswap pair exists for solid2
+        vm.expectRevert(UniSolid.NoPair.selector);
+        proto.make(solid2);
     }
 
     function test_OnlyOwnerWithdraw() public {
@@ -166,13 +233,16 @@ contract UniSolidTest is BaseTest {
 
         // Add liquidity: arb sends ETH + tokens to router
         vm.deal(address(arb), 1 ether);
-        arb.addLiquidityETH{value: 0.5 ether}(address(solid), tokens, 0, 0);
+        arb.addLiquidityETH{value: 0.5 ether}(tokens, 0, 0);
 
         assertGt(router.lpBalanceOf(address(arb)), 0, "should have LP tokens");
         assertEq(router.lpBalanceOf(address(arb)), 0.5 ether, "LP tokens should equal ETH sent");
     }
 
     function test_RemoveLiquidityETH() public {
+        // Reset mock reserves so only addLiquidity tokens are tracked
+        router.setPool(address(solid), 0, 0);
+
         // Setup: buy tokens, transfer to arb, add liquidity
         vm.deal(address(this), 2 ether);
         uint256 tokens = solid.buy{value: 1 ether}();
@@ -180,13 +250,13 @@ contract UniSolidTest is BaseTest {
         solid.transfer(address(arb), tokens);
 
         vm.deal(address(arb), 1 ether);
-        arb.addLiquidityETH{value: 0.5 ether}(address(solid), tokens, 0, 0);
+        arb.addLiquidityETH{value: 0.5 ether}(tokens, 0, 0);
 
         uint256 lp = router.lpBalanceOf(address(arb));
         uint256 balBefore = address(arb).balance;
 
         // Remove all liquidity (pair == router in mock)
-        arb.removeLiquidityETH(address(solid), address(router), lp, 0, 0);
+        arb.removeLiquidityETH(lp, 0, 0);
 
         assertEq(router.lpBalanceOf(address(arb)), 0, "LP tokens should be burned");
         assertGt(address(arb).balance, balBefore, "should have received ETH back");
@@ -195,33 +265,33 @@ contract UniSolidTest is BaseTest {
     function test_OnlyOwnerAddLiquidity() public {
         vm.prank(address(0xdead));
         vm.expectRevert(UniSolid.Unauthorized.selector);
-        arb.addLiquidityETH(address(solid), 0, 0, 0);
+        arb.addLiquidityETH(0, 0, 0);
     }
 
     function test_OnlyOwnerRemoveLiquidity() public {
         vm.prank(address(0xdead));
         vm.expectRevert(UniSolid.Unauthorized.selector);
-        arb.removeLiquidityETH(address(solid), address(router), 0, 0, 0);
+        arb.removeLiquidityETH(0, 0, 0);
     }
 
     // ---- Factory tests ----
 
     function test_MadePredictsAddress() public view {
-        (bool exists, address home,) = proto.made(address(this));
+        (bool exists, address home,) = proto.made(address(this), solid);
         assertTrue(exists, "clone should exist");
         assertEq(home, address(arb), "predicted address should match clone");
     }
 
     function test_MakeIdempotent() public {
-        UniSolid second = proto.make();
+        UniSolid second = proto.make(solid);
         assertEq(address(second), address(arb), "second make should return same clone");
     }
 
     function test_MakeFromClone() public {
         // Calling make() on a clone forwards to proto.
         // msg.sender becomes the clone itself, so it gets its own clone.
-        UniSolid cloneOfClone = arb.make();
-        (, address expected,) = proto.made(address(arb));
+        UniSolid cloneOfClone = arb.make(solid);
+        (, address expected,) = proto.made(address(arb), solid);
         assertEq(address(cloneOfClone), expected, "make via clone should forward to proto");
         assertEq(cloneOfClone.owner(), address(arb), "clone-of-clone owner should be the calling clone");
     }
@@ -229,7 +299,7 @@ contract UniSolidTest is BaseTest {
     function test_MakeDifferentOwners() public {
         address other = address(0xBEEF);
         vm.prank(other);
-        UniSolid otherArb = proto.make();
+        UniSolid otherArb = proto.make(solid);
         assertTrue(address(otherArb) != address(arb), "different owners should get different clones");
         assertEq(otherArb.owner(), other, "clone owner should be caller");
     }
@@ -244,7 +314,7 @@ contract UniSolidTest is BaseTest {
 
     function test_ZzInitOnlyCallableByProto() public {
         vm.expectRevert(UniSolid.Unauthorized.selector);
-        arb.zzInit(address(this));
+        arb.zzInit(address(this), solid, address(router));
     }
 
     receive() external payable {}

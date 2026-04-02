@@ -4,8 +4,9 @@ pragma solidity ^0.8.30;
 import {IERC20} from "ierc20/IERC20.sol";
 
 /**
- * @notice Mock Uniswap V2 Router with a simple constant-product pool
- * @dev Also acts as its own LP token for testing (pair == router)
+ * @notice Mock Uniswap V2 Router + Factory + Pair for testing.
+ * @dev Acts as router, factory, and pair all in one contract.
+ *      Also acts as its own LP token (pair == router).
  */
 contract UnswapV2Router01Mock {
     // forge-lint: disable-next-line(screaming-snake-case-immutable)
@@ -27,6 +28,36 @@ contract UnswapV2Router01Mock {
     function WETH() external view returns (address) {
         return weth;
     }
+
+    // ---- Factory interface ----
+
+    function factory() external view returns (address) {
+        return address(this);
+    }
+
+    function getPair(address tokenA, address) external view returns (address) {
+        if (tokenA == token || tokenA == weth) return address(this);
+        return address(0);
+    }
+
+    // ---- Pair interface ----
+
+    function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32) {
+        // token0 is the lower address
+        if (token < weth) {
+            reserve0 = uint112(reserveToken);
+            reserve1 = uint112(reserveETH);
+        } else {
+            reserve0 = uint112(reserveETH);
+            reserve1 = uint112(reserveToken);
+        }
+    }
+
+    function token0() external view returns (address) {
+        return token < weth ? token : weth;
+    }
+
+    // ---- Router interface ----
 
     /**
      * @notice Set up the mock pool reserves
