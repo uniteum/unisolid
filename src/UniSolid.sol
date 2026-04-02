@@ -23,8 +23,8 @@ import {Clones} from "clones/Clones.sol";
  */
 contract UniSolid is IAutomation {
     UniSolid public immutable PROTO = this;
-    // forge-lint: disable-next-line(screaming-snake-case-immutable)
-    IUniswapV2Router01 public immutable router;
+    IUniswapV2Router01 public immutable ROUTER;
+    address public immutable WETH;
 
     address public owner;
 
@@ -50,19 +50,29 @@ contract UniSolid is IAutomation {
     }
 
     event Make(UniSolid indexed clone, address indexed owner);
-    event Arb(ISolid indexed solid, Direction direction, uint256 ethIn, uint256 profit);
+    event Arb(
+        ISolid indexed solid,
+        Direction direction,
+        uint256 ethIn,
+        uint256 profit
+    );
 
     error Unauthorized();
     error NoProfitableArb();
     error InsufficientBalance();
 
     modifier onlyOwner() {
-        if (msg.sender != owner) revert Unauthorized();
+        _onlyOwner();
         _;
     }
 
+    function _onlyOwner() internal view {
+        if (msg.sender != owner) revert Unauthorized();
+    }
+
     constructor(IAddressLookup routerLookup) {
-        router = IUniswapV2Router01(routerLookup.value());
+        ROUTER = IUniswapV2Router01(routerLookup.value());
+        WETH = ROUTER.WETH();
     }
 
     receive() external payable {}
@@ -73,11 +83,13 @@ contract UniSolid is IAutomation {
      * @notice Check whether a profitable arbitrage exists
      * @dev checkData encodes a Params struct. The keeper calls this off-chain
      *      to determine if performUpkeep should fire.
-     * @param checkData ABI-encoded Params (solid, router, ethIn, minProfit)
+     * @param checkData ABI-encoded Params (solid, ethIn, minProfit)
      * @return upkeepNeeded True if a profitable arb exists
      * @return performData ABI-encoded (Params, Direction) for execution
      */
-    function checkUpkeep(bytes calldata checkData)
+    function checkUpkeep(
+        bytes calldata checkData
+    )
         external
         view
         override
@@ -100,7 +112,10 @@ contract UniSolid is IAutomation {
      * @param performData ABI-encoded (Params, Direction) from checkUpkeep
      */
     function performUpkeep(bytes calldata performData) external override {
-        (Params memory p, Direction dir) = abi.decode(performData, (Params, Direction));
+        (Params memory p, Direction dir) = abi.decode(
+            performData,
+            (Params, Direction)
+        );
         if (address(this).balance < p.ethIn) revert InsufficientBalance();
 
         (, uint256 profit) = _quote(p);
@@ -121,7 +136,9 @@ contract UniSolid is IAutomation {
      * @return dir The profitable direction (None if neither)
      * @return profit Net ETH profit
      */
-    function _quote(Params memory p) internal view returns (Direction dir, uint256 profit) {
+    function _quote(
+        Params memory p
+    ) internal view returns (Direction dir, uint256 profit) {
         uint256 profitA = _quoteSolidToUniswap(p);
         uint256 profitB = _quoteUniswapToSolid(p);
 
@@ -137,15 +154,19 @@ contract UniSolid is IAutomation {
      * @notice Quote: buy on Solid, sell on Uniswap
      * @return profit Net ETH gain (0 if unprofitable)
      */
-    function _quoteSolidToUniswap(Params memory p) internal view returns (uint256 profit) {
+    function _quoteSolidToUniswap(
+        Params memory p
+    ) internal view returns (uint256 profit) {
         uint256 tokensOut = p.solid.buys(p.ethIn);
         if (tokensOut == 0) return 0;
 
         address[] memory path = new address[](2);
         path[0] = address(p.solid);
-        path[1] = router.WETH();
+        path[1] = WETH;
 
-        try router.getAmountsOut(tokensOut, path) returns (uint256[] memory amounts) {
+        try ROUTER.getAmountsOut(tokensOut, path) returns (
+            uint256[] memory amounts
+        ) {
             uint256 ethBack = amounts[1];
             if (ethBack > p.ethIn) profit = ethBack - p.ethIn;
         } catch {}
@@ -155,12 +176,16 @@ contract UniSolid is IAutomation {
      * @notice Quote: buy on Uniswap, sell on Solid
      * @return profit Net ETH gain (0 if unprofitable)
      */
-    function _quoteUniswapToSolid(Params memory p) internal view returns (uint256 profit) {
+    function _quoteUniswapToSolid(
+        Params memory p
+    ) internal view returns (uint256 profit) {
         address[] memory path = new address[](2);
-        path[0] = router.WETH();
+        path[0] = WETH;
         path[1] = address(p.solid);
 
-        try router.getAmountsOut(p.ethIn, path) returns (uint256[] memory amounts) {
+        try ROUTER.getAmountsOut(p.ethIn, path) returns (
+            uint256[] memory amounts
+        ) {
             uint256 tokensOut = amounts[1];
             if (tokensOut == 0) return 0;
 
@@ -175,13 +200,19 @@ contract UniSolid is IAutomation {
     function _arbSolidToUniswap(Params memory p) internal {
         uint256 tokensOut = p.solid.buy{value: p.ethIn}();
 
-        IERC20(address(p.solid)).approve(address(router), tokensOut);
+        IERC20(address(p.solid)).approve(address(ROUTER), tokensOut);
 
         address[] memory path = new address[](2);
         path[0] = address(p.solid);
-        path[1] = router.WETH();
+        path[1] = WETH;
 
-        router.swapExactTokensForETH(tokensOut, p.ethIn, path, address(this), block.timestamp);
+        ROUTER.swapExactTokensForETH(
+            tokensOut,
+            p.ethIn,
+            path,
+            address(this),
+            block.timestamp
+        );
     }
 
     /**
@@ -189,10 +220,15 @@ contract UniSolid is IAutomation {
      */
     function _arbUniswapToSolid(Params memory p) internal {
         address[] memory path = new address[](2);
-        path[0] = router.WETH();
+        path[0] = WETH;
         path[1] = address(p.solid);
 
-        uint256[] memory amounts = router.swapExactETHForTokens{value: p.ethIn}(0, path, address(this), block.timestamp);
+        uint256[] memory amounts = ROUTER.swapExactETHForTokens{value: p.ethIn}(
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
         uint256 tokensOut = amounts[1];
 
         p.solid.sell(tokensOut);
@@ -210,7 +246,7 @@ contract UniSolid is IAutomation {
      * @param amount Amount of ETH to withdraw
      */
     function withdraw(uint256 amount) external onlyOwner {
-        (bool ok,) = owner.call{value: amount}("");
+        (bool ok, ) = owner.call{value: amount}("");
         require(ok);
     }
 
@@ -241,16 +277,28 @@ contract UniSolid is IAutomation {
         uint256 amountTokenMin,
         // forge-lint: disable-next-line(mixed-case-variable)
         uint256 amountETHMin
-        // forge-lint: disable-next-line(mixed-case-variable)
     )
         external
         payable
+        // forge-lint: disable-next-line(mixed-case-variable)
         onlyOwner
-        returns (uint256 amountToken, uint256 amountETH, uint256 liquidity)
+        returns (
+            // forge-lint: disable-next-line(mixed-case-variable)
+            uint256 amountToken,
+            uint256 amountETH,
+            uint256 liquidity
+        )
     {
-        IERC20(token).approve(address(router), amountTokenDesired);
-        (amountToken, amountETH, liquidity) = router.addLiquidityETH{value: msg.value}(
-            token, amountTokenDesired, amountTokenMin, amountETHMin, address(this), block.timestamp
+        IERC20(token).approve(address(ROUTER), amountTokenDesired);
+        (amountToken, amountETH, liquidity) = ROUTER.addLiquidityETH{
+            value: msg.value
+        }(
+            token,
+            amountTokenDesired,
+            amountTokenMin,
+            amountETHMin,
+            address(this),
+            block.timestamp
         );
     }
 
@@ -272,11 +320,21 @@ contract UniSolid is IAutomation {
         uint256 amountTokenMin,
         // forge-lint: disable-next-line(mixed-case-variable)
         uint256 amountETHMin
+    )
+        external
         // forge-lint: disable-next-line(mixed-case-variable)
-    ) external onlyOwner returns (uint256 amountToken, uint256 amountETH) {
-        IERC20(pair).approve(address(router), liquidity);
-        (amountToken, amountETH) =
-            router.removeLiquidityETH(token, liquidity, amountTokenMin, amountETHMin, address(this), block.timestamp);
+        onlyOwner
+        returns (uint256 amountToken, uint256 amountETH)
+    {
+        IERC20(pair).approve(address(ROUTER), liquidity);
+        (amountToken, amountETH) = ROUTER.removeLiquidityETH(
+            token,
+            liquidity,
+            amountTokenMin,
+            amountETHMin,
+            address(this),
+            block.timestamp
+        );
     }
 
     // ---- Factory (Bitsy) ----
@@ -288,9 +346,15 @@ contract UniSolid is IAutomation {
      * @return home The deterministic clone address
      * @return salt The CREATE2 salt
      */
-    function made(address owner_) public view returns (bool exists, address home, bytes32 salt) {
+    function made(
+        address owner_
+    ) public view returns (bool exists, address home, bytes32 salt) {
         salt = keccak256(abi.encode(owner_));
-        home = Clones.predictDeterministicAddress(address(PROTO), salt, address(PROTO));
+        home = Clones.predictDeterministicAddress(
+            address(PROTO),
+            salt,
+            address(PROTO)
+        );
         exists = home.code.length > 0;
     }
 
