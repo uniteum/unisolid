@@ -5,10 +5,11 @@ import {BaseTest} from "crucible/test/Base.t.sol";
 import {UniSolid} from "../src/UniSolid.sol";
 import {Solid} from "solid/Solid.sol";
 import {ISolid} from "isolid/ISolid.sol";
-import {IUniswapV2Router01} from "iuniswap/IUniswapV2Router01.sol";
+import {IAddressLookup} from "ilookup/IAddressLookup.sol";
 import {IERC20} from "ierc20/IERC20.sol";
 import {console} from "forge-std/Test.sol";
 import {UnswapV2Router01Mock} from "./UnswapV2Router01Mock.sol";
+import {AddressLookupMock} from "./AddressLookupMock.sol";
 
 contract UniSolidTest is BaseTest {
     UniSolid proto;
@@ -24,17 +25,12 @@ contract UniSolidTest is BaseTest {
 
         router = new UnswapV2Router01Mock(address(0xE77));
 
-        proto = new UniSolid();
+        proto = new UniSolid(IAddressLookup(address(new AddressLookupMock(address(router)))));
         arb = proto.make();
     }
 
     function _params(uint256 ethIn, uint256 minProfit) internal view returns (UniSolid.Params memory) {
-        return UniSolid.Params({
-            solid: ISolid(address(solid)),
-            router: IUniswapV2Router01(address(router)),
-            ethIn: ethIn,
-            minProfit: minProfit
-        });
+        return UniSolid.Params({solid: ISolid(address(solid)), ethIn: ethIn, minProfit: minProfit});
     }
 
     function _encode(UniSolid.Params memory p) internal pure returns (bytes memory) {
@@ -170,7 +166,7 @@ contract UniSolidTest is BaseTest {
 
         // Add liquidity: arb sends ETH + tokens to router
         vm.deal(address(arb), 1 ether);
-        arb.addLiquidityETH{value: 0.5 ether}(IUniswapV2Router01(address(router)), address(solid), tokens, 0, 0);
+        arb.addLiquidityETH{value: 0.5 ether}(address(solid), tokens, 0, 0);
 
         assertGt(router.lpBalanceOf(address(arb)), 0, "should have LP tokens");
         assertEq(router.lpBalanceOf(address(arb)), 0.5 ether, "LP tokens should equal ETH sent");
@@ -184,13 +180,13 @@ contract UniSolidTest is BaseTest {
         solid.transfer(address(arb), tokens);
 
         vm.deal(address(arb), 1 ether);
-        arb.addLiquidityETH{value: 0.5 ether}(IUniswapV2Router01(address(router)), address(solid), tokens, 0, 0);
+        arb.addLiquidityETH{value: 0.5 ether}(address(solid), tokens, 0, 0);
 
         uint256 lp = router.lpBalanceOf(address(arb));
         uint256 balBefore = address(arb).balance;
 
         // Remove all liquidity (pair == router in mock)
-        arb.removeLiquidityETH(IUniswapV2Router01(address(router)), address(solid), address(router), lp, 0, 0);
+        arb.removeLiquidityETH(address(solid), address(router), lp, 0, 0);
 
         assertEq(router.lpBalanceOf(address(arb)), 0, "LP tokens should be burned");
         assertGt(address(arb).balance, balBefore, "should have received ETH back");
@@ -199,13 +195,13 @@ contract UniSolidTest is BaseTest {
     function test_OnlyOwnerAddLiquidity() public {
         vm.prank(address(0xdead));
         vm.expectRevert(UniSolid.Unauthorized.selector);
-        arb.addLiquidityETH(IUniswapV2Router01(address(router)), address(solid), 0, 0, 0);
+        arb.addLiquidityETH(address(solid), 0, 0, 0);
     }
 
     function test_OnlyOwnerRemoveLiquidity() public {
         vm.prank(address(0xdead));
         vm.expectRevert(UniSolid.Unauthorized.selector);
-        arb.removeLiquidityETH(IUniswapV2Router01(address(router)), address(solid), address(router), 0, 0, 0);
+        arb.removeLiquidityETH(address(solid), address(router), 0, 0, 0);
     }
 
     // ---- Factory tests ----

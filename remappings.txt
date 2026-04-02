@@ -7,4 +7,5 @@ ierc20/=lib/ierc20/
 isolid/=lib/isolid/
 iuniswap/=lib/iuniswap/
 reentrancy/=lib/reentrancy/
+ilookup/=lib/ilookup/
 solid/=lib/solid/src/

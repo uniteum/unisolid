@@ -28,3 +28,6 @@
 [submodule "lib/solid"]
 	path = lib/solid
 	url = https://github.com/uniteum/solid.git
+[submodule "lib/ilookup"]
+	path = lib/ilookup
+	url = git@github.com:uniteum/ilookup.git

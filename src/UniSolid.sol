@@ -5,6 +5,7 @@ import {IAutomation} from "iautomation/iautomation.sol";
 import {ISolid} from "isolid/ISolid.sol";
 import {IERC20} from "ierc20/IERC20.sol";
 import {IUniswapV2Router01} from "iuniswap/IUniswapV2Router01.sol";
+import {IAddressLookup} from "ilookup/IAddressLookup.sol";
 import {Clones} from "clones/Clones.sol";
 
 /**
@@ -22,19 +23,19 @@ import {Clones} from "clones/Clones.sol";
  */
 contract UniSolid is IAutomation {
     UniSolid public immutable PROTO = this;
+    // forge-lint: disable-next-line(screaming-snake-case-immutable)
+    IUniswapV2Router01 public immutable router;
 
     address public owner;
 
     /**
      * @notice Parameters for a single arbitrage opportunity
      * @param solid The Solid token to arbitrage
-     * @param router The Uniswap V2 router
      * @param ethIn Amount of ETH to trade
      * @param minProfit Minimum profit in ETH to execute
      */
     struct Params {
         ISolid solid;
-        IUniswapV2Router01 router;
         uint256 ethIn;
         uint256 minProfit;
     }
@@ -60,7 +61,9 @@ contract UniSolid is IAutomation {
         _;
     }
 
-    constructor() {}
+    constructor(IAddressLookup routerLookup) {
+        router = IUniswapV2Router01(routerLookup.value());
+    }
 
     receive() external payable {}
 
@@ -140,9 +143,9 @@ contract UniSolid is IAutomation {
 
         address[] memory path = new address[](2);
         path[0] = address(p.solid);
-        path[1] = p.router.WETH();
+        path[1] = router.WETH();
 
-        try p.router.getAmountsOut(tokensOut, path) returns (uint256[] memory amounts) {
+        try router.getAmountsOut(tokensOut, path) returns (uint256[] memory amounts) {
             uint256 ethBack = amounts[1];
             if (ethBack > p.ethIn) profit = ethBack - p.ethIn;
         } catch {}
@@ -154,10 +157,10 @@ contract UniSolid is IAutomation {
      */
     function _quoteUniswapToSolid(Params memory p) internal view returns (uint256 profit) {
         address[] memory path = new address[](2);
-        path[0] = p.router.WETH();
+        path[0] = router.WETH();
         path[1] = address(p.solid);
 
-        try p.router.getAmountsOut(p.ethIn, path) returns (uint256[] memory amounts) {
+        try router.getAmountsOut(p.ethIn, path) returns (uint256[] memory amounts) {
             uint256 tokensOut = amounts[1];
             if (tokensOut == 0) return 0;
 
@@ -172,13 +175,13 @@ contract UniSolid is IAutomation {
     function _arbSolidToUniswap(Params memory p) internal {
         uint256 tokensOut = p.solid.buy{value: p.ethIn}();
 
-        IERC20(address(p.solid)).approve(address(p.router), tokensOut);
+        IERC20(address(p.solid)).approve(address(router), tokensOut);
 
         address[] memory path = new address[](2);
         path[0] = address(p.solid);
-        path[1] = p.router.WETH();
+        path[1] = router.WETH();
 
-        p.router.swapExactTokensForETH(tokensOut, p.ethIn, path, address(this), block.timestamp);
+        router.swapExactTokensForETH(tokensOut, p.ethIn, path, address(this), block.timestamp);
     }
 
     /**
@@ -186,11 +189,10 @@ contract UniSolid is IAutomation {
      */
     function _arbUniswapToSolid(Params memory p) internal {
         address[] memory path = new address[](2);
-        path[0] = p.router.WETH();
+        path[0] = router.WETH();
         path[1] = address(p.solid);
 
-        uint256[] memory amounts =
-            p.router.swapExactETHForTokens{value: p.ethIn}(0, path, address(this), block.timestamp);
+        uint256[] memory amounts = router.swapExactETHForTokens{value: p.ethIn}(0, path, address(this), block.timestamp);
         uint256 tokensOut = amounts[1];
 
         p.solid.sell(tokensOut);
@@ -224,7 +226,6 @@ contract UniSolid is IAutomation {
     /**
      * @notice Add liquidity to a Uniswap V2 ETH/token pair
      * @dev LP tokens are held by this contract. Use recover() to extract them if needed.
-     * @param router The Uniswap V2 router
      * @param token The token to pair with ETH
      * @param amountTokenDesired Maximum tokens to deposit
      * @param amountTokenMin Minimum tokens to deposit (slippage)
@@ -235,14 +236,18 @@ contract UniSolid is IAutomation {
      */
     // forge-lint: disable-next-line(mixed-case-function)
     function addLiquidityETH(
-        IUniswapV2Router01 router,
         address token,
         uint256 amountTokenDesired,
         uint256 amountTokenMin,
         // forge-lint: disable-next-line(mixed-case-variable)
         uint256 amountETHMin
         // forge-lint: disable-next-line(mixed-case-variable)
-    ) external payable onlyOwner returns (uint256 amountToken, uint256 amountETH, uint256 liquidity) {
+    )
+        external
+        payable
+        onlyOwner
+        returns (uint256 amountToken, uint256 amountETH, uint256 liquidity)
+    {
         IERC20(token).approve(address(router), amountTokenDesired);
         (amountToken, amountETH, liquidity) = router.addLiquidityETH{value: msg.value}(
             token, amountTokenDesired, amountTokenMin, amountETHMin, address(this), block.timestamp
@@ -251,7 +256,6 @@ contract UniSolid is IAutomation {
 
     /**
      * @notice Remove liquidity from a Uniswap V2 ETH/token pair
-     * @param router The Uniswap V2 router
      * @param token The token paired with ETH
      * @param pair The LP token address
      * @param liquidity Amount of LP tokens to burn
@@ -262,7 +266,6 @@ contract UniSolid is IAutomation {
      */
     // forge-lint: disable-next-line(mixed-case-function)
     function removeLiquidityETH(
-        IUniswapV2Router01 router,
         address token,
         address pair,
         uint256 liquidity,
