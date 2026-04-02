@@ -265,9 +265,9 @@ contract UniSolid is IAutomation {
      * @param token The token to pair with ETH
      * @param amountTokenDesired Maximum tokens to deposit
      * @param amountTokenMin Minimum tokens to deposit (slippage)
-     * @param amountETHMin Minimum ETH to deposit (slippage)
+     * @param amountEthMin Minimum ETH to deposit (slippage)
      * @return amountToken Actual tokens deposited
-     * @return amountETH Actual ETH deposited
+     * @return amountEth Actual ETH deposited
      * @return liquidity LP tokens received
      */
     // forge-lint: disable-next-line(mixed-case-function)
@@ -275,28 +275,25 @@ contract UniSolid is IAutomation {
         address token,
         uint256 amountTokenDesired,
         uint256 amountTokenMin,
-        // forge-lint: disable-next-line(mixed-case-variable)
-        uint256 amountETHMin
+        uint256 amountEthMin
     )
         external
         payable
-        // forge-lint: disable-next-line(mixed-case-variable)
         onlyOwner
         returns (
-            // forge-lint: disable-next-line(mixed-case-variable)
             uint256 amountToken,
-            uint256 amountETH,
+            uint256 amountEth,
             uint256 liquidity
         )
     {
         IERC20(token).approve(address(ROUTER), amountTokenDesired);
-        (amountToken, amountETH, liquidity) = ROUTER.addLiquidityETH{
+        (amountToken, amountEth, liquidity) = ROUTER.addLiquidityETH{
             value: msg.value
         }(
             token,
             amountTokenDesired,
             amountTokenMin,
-            amountETHMin,
+            amountEthMin,
             address(this),
             block.timestamp
         );
@@ -308,9 +305,9 @@ contract UniSolid is IAutomation {
      * @param pair The LP token address
      * @param liquidity Amount of LP tokens to burn
      * @param amountTokenMin Minimum tokens to receive (slippage)
-     * @param amountETHMin Minimum ETH to receive (slippage)
+     * @param amountEthMin Minimum ETH to receive (slippage)
      * @return amountToken Tokens received
-     * @return amountETH ETH received
+     * @return amountEth ETH received
      */
     // forge-lint: disable-next-line(mixed-case-function)
     function removeLiquidityETH(
@@ -318,20 +315,18 @@ contract UniSolid is IAutomation {
         address pair,
         uint256 liquidity,
         uint256 amountTokenMin,
-        // forge-lint: disable-next-line(mixed-case-variable)
-        uint256 amountETHMin
+        uint256 amountEthMin
     )
         external
-        // forge-lint: disable-next-line(mixed-case-variable)
         onlyOwner
-        returns (uint256 amountToken, uint256 amountETH)
+        returns (uint256 amountToken, uint256 amountEth)
     {
         IERC20(pair).approve(address(ROUTER), liquidity);
-        (amountToken, amountETH) = ROUTER.removeLiquidityETH(
+        (amountToken, amountEth) = ROUTER.removeLiquidityETH(
             token,
             liquidity,
             amountTokenMin,
-            amountETHMin,
+            amountEthMin,
             address(this),
             block.timestamp
         );
