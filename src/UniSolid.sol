@@ -33,8 +33,7 @@ contract UniSolid is IAutomation {
     IUniswapV2Router01 public immutable ROUTER;
     IUniswapV2Factory public immutable FACTORY;
     address public immutable WETH;
-    uint256 public immutable GAS_ESTIMATE;
-    uint256 public immutable MARGIN;
+    uint256 public immutable GAS_MARGIN;
 
     address public owner;
     ISolid public solid;
@@ -68,15 +67,13 @@ contract UniSolid is IAutomation {
 
     /**
      * @param routerLookup Lookup for Uniswap V2 router address
-     * @param gasEstimate Expected gas for performUpkeep (e.g. 300_000)
-     * @param margin Multiplier over breakeven in 1e18 (e.g. 1.5e18 = 50% margin)
+     * @param gasMargin Gas estimate × margin multiplier (e.g. 300_000 × 1.5e18)
      */
-    constructor(IAddressLookup routerLookup, uint256 gasEstimate, uint256 margin) {
+    constructor(IAddressLookup routerLookup, uint256 gasMargin) {
         ROUTER = IUniswapV2Router01(routerLookup.value());
         FACTORY = IUniswapV2Factory(ROUTER.factory());
         WETH = ROUTER.WETH();
-        GAS_ESTIMATE = gasEstimate;
-        MARGIN = margin;
+        GAS_MARGIN = gasMargin;
     }
 
     receive() external payable {}
@@ -92,7 +89,7 @@ contract UniSolid is IAutomation {
      */
     function checkUpkeep(bytes calldata) external view override returns (bool upkeepNeeded, bytes memory performData) {
         (Direction dir, uint256 ethIn, uint256 profit) = _quote();
-        uint256 minProfit = GAS_ESTIMATE * tx.gasprice * MARGIN / 1e18;
+        uint256 minProfit = GAS_MARGIN * tx.gasprice / 1e18;
         if (dir == Direction.None || profit < minProfit) return (false, "");
         if (address(this).balance < ethIn) return (false, "");
 
@@ -108,7 +105,7 @@ contract UniSolid is IAutomation {
     function performUpkeep(bytes calldata) external override {
         (Direction dir, uint256 ethIn, uint256 profit) = _quote();
         if (address(this).balance < ethIn) revert InsufficientBalance();
-        uint256 minProfit = GAS_ESTIMATE * tx.gasprice * MARGIN / 1e18;
+        uint256 minProfit = GAS_MARGIN * tx.gasprice / 1e18;
         if (profit < minProfit) revert NoProfitableArb();
 
         if (dir == Direction.SolidToUniswap) {

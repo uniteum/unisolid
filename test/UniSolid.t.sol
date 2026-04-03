@@ -28,7 +28,7 @@ contract UniSolidTest is BaseTest {
         // Pair must exist before make(solid) — set up a minimal pool
         router.setPool(address(solid), 1, 1);
 
-        proto = new UniSolid(IAddressLookup(address(new AddressLookupMock(address(router)))), 0, 0);
+        proto = new UniSolid(IAddressLookup(address(new AddressLookupMock(address(router)))), 0);
         arb = proto.make(solid);
     }
 
@@ -127,7 +127,7 @@ contract UniSolidTest is BaseTest {
 
         // Deploy a proto with impossibly high threshold: 10M gas × 1e18 margin
         UniSolid highProto =
-            new UniSolid(IAddressLookup(address(new AddressLookupMock(address(router)))), 10_000_000, 1e18);
+            new UniSolid(IAddressLookup(address(new AddressLookupMock(address(router)))), 10_000_000 * 1e18);
         UniSolid highArb = highProto.make(solid);
         vm.deal(address(highArb), 1 ether);
 
