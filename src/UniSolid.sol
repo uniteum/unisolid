@@ -5,19 +5,11 @@ import {IAutomation} from "iautomation/iautomation.sol";
 import {ISolid} from "isolid/ISolid.sol";
 import {IERC20} from "ierc20/IERC20.sol";
 import {IUniswapV2Router01} from "iuniswap/IUniswapV2Router01.sol";
+import {IUniswapV2Factory} from "iuniswap/IUniswapV2Factory.sol";
+import {IUniswapV2Pair} from "iuniswap/IUniswapV2Pair.sol";
 import {IAddressLookup} from "ilookup/IAddressLookup.sol";
 import {Clones} from "clones/Clones.sol";
 import {Math} from "math/Math.sol";
-
-interface IUniswapV2Factory {
-    function getPair(address tokenA, address tokenB) external view returns (address pair);
-}
-
-interface IUniswapV2Pair {
-    function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
-
-    function token0() external view returns (address);
-}
 
 /**
  * @notice Arbitrage bot between Solid AMM and Uniswap V2.
