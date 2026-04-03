@@ -28,16 +28,8 @@ contract UniSolidTest is BaseTest {
         // Pair must exist before make(solid) — set up a minimal pool
         router.setPool(address(solid), 1, 1);
 
-        proto = new UniSolid(IAddressLookup(address(new AddressLookupMock(address(router)))));
+        proto = new UniSolid(IAddressLookup(address(new AddressLookupMock(address(router)))), 0, 0);
         arb = proto.make(solid);
-    }
-
-    function _params(uint256 gasEstimate, uint256 margin) internal pure returns (UniSolid.Params memory) {
-        return UniSolid.Params({gasEstimate: gasEstimate, margin: margin});
-    }
-
-    function _encode(UniSolid.Params memory p) internal pure returns (bytes memory) {
-        return abi.encode(p);
     }
 
     function test_NoArbWhenPricesEqual() public {
@@ -58,8 +50,7 @@ contract UniSolidTest is BaseTest {
         vm.deal(address(arb), 1 ether);
 
         vm.txGasPrice(10 gwei);
-        UniSolid.Params memory p = _params(300_000, 1e18);
-        (bool needed,) = arb.checkUpkeep(_encode(p));
+        (bool needed,) = arb.checkUpkeep("");
         assertFalse(needed, "should not arb when prices equal");
     }
 
@@ -78,8 +69,7 @@ contract UniSolidTest is BaseTest {
         // Fund arb contract
         vm.deal(address(arb), 1 ether);
 
-        UniSolid.Params memory p = _params(0, 0);
-        (bool needed, bytes memory performData) = arb.checkUpkeep(_encode(p));
+        (bool needed, bytes memory performData) = arb.checkUpkeep("");
 
         if (needed) {
             uint256 balBefore = address(arb).balance;
@@ -105,8 +95,7 @@ contract UniSolidTest is BaseTest {
         vm.deal(address(arb), 0.5 ether);
         vm.deal(address(solid), 5 ether);
 
-        UniSolid.Params memory p = _params(0, 0);
-        (bool needed, bytes memory performData) = arb.checkUpkeep(_encode(p));
+        (bool needed, bytes memory performData) = arb.checkUpkeep("");
 
         if (needed) {
             uint256 balBefore = address(arb).balance;
@@ -123,8 +112,7 @@ contract UniSolidTest is BaseTest {
         router.setPool(address(solid), 10 ether, 1_000_000 ether);
 
         // Arb contract has no ETH
-        UniSolid.Params memory p = _params(0, 0);
-        (bool needed,) = arb.checkUpkeep(_encode(p));
+        (bool needed,) = arb.checkUpkeep("");
         assertFalse(needed, "should not arb without balance");
     }
 
@@ -137,12 +125,14 @@ contract UniSolidTest is BaseTest {
         // forge-lint: disable-next-line(erc20-unchecked-transfer)
         solid.transfer(address(router), tokens);
 
-        vm.deal(address(arb), 1 ether);
+        // Deploy a proto with impossibly high threshold: 10M gas × 1e18 margin
+        UniSolid highProto =
+            new UniSolid(IAddressLookup(address(new AddressLookupMock(address(router)))), 10_000_000, 1e18);
+        UniSolid highArb = highProto.make(solid);
+        vm.deal(address(highArb), 1 ether);
 
-        // Set impossibly high threshold: 10M gas × 1000 gwei × 1e18 margin
         vm.txGasPrice(1000 gwei);
-        UniSolid.Params memory p = _params(10_000_000, 1e18);
-        (bool needed,) = arb.checkUpkeep(_encode(p));
+        (bool needed,) = highArb.checkUpkeep("");
         assertFalse(needed, "should not arb below min profit");
     }
 
@@ -160,12 +150,11 @@ contract UniSolidTest is BaseTest {
         vm.deal(address(solid), 5 ether);
 
         // Get optimal ethIn from checkUpkeep
-        UniSolid.Params memory p = _params(0, 0);
         vm.deal(address(arb), 10 ether);
-        (bool needed, bytes memory performData) = arb.checkUpkeep(_encode(p));
+        (bool needed, bytes memory performData) = arb.checkUpkeep("");
         assertTrue(needed, "should find arb");
 
-        (,, uint256 optimalEthIn) = abi.decode(performData, (UniSolid.Params, UniSolid.Direction, uint256));
+        (, uint256 optimalEthIn) = abi.decode(performData, (UniSolid.Direction, uint256));
         assertGt(optimalEthIn, 0, "optimal ethIn should be positive");
         console.log("Optimal ethIn:", optimalEthIn);
     }

@@ -33,20 +33,12 @@ contract UniSolid is IAutomation {
     IUniswapV2Router01 public immutable ROUTER;
     IUniswapV2Factory public immutable FACTORY;
     address public immutable WETH;
+    uint256 public immutable GAS_ESTIMATE;
+    uint256 public immutable MARGIN;
 
     address public owner;
     ISolid public solid;
     address public pair;
-
-    /**
-     * @notice Parameters for a single arbitrage opportunity
-     * @param gasEstimate Expected gas for performUpkeep (e.g. 300_000)
-     * @param margin Multiplier over breakeven in 1e18 (e.g. 1.5e18 = 50% margin)
-     */
-    struct Params {
-        uint256 gasEstimate;
-        uint256 margin;
-    }
 
     /**
      * @notice Direction of the arbitrage
@@ -74,10 +66,17 @@ contract UniSolid is IAutomation {
         if (msg.sender != owner) revert Unauthorized();
     }
 
-    constructor(IAddressLookup routerLookup) {
+    /**
+     * @param routerLookup Lookup for Uniswap V2 router address
+     * @param gasEstimate Expected gas for performUpkeep (e.g. 300_000)
+     * @param margin Multiplier over breakeven in 1e18 (e.g. 1.5e18 = 50% margin)
+     */
+    constructor(IAddressLookup routerLookup, uint256 gasEstimate, uint256 margin) {
         ROUTER = IUniswapV2Router01(routerLookup.value());
         FACTORY = IUniswapV2Factory(ROUTER.factory());
         WETH = ROUTER.WETH();
+        GAS_ESTIMATE = gasEstimate;
+        MARGIN = margin;
     }
 
     receive() external payable {}
@@ -86,27 +85,18 @@ contract UniSolid is IAutomation {
 
     /**
      * @notice Check whether a profitable arbitrage exists
-     * @dev checkData encodes a Params struct. The keeper calls this off-chain
-     *      to determine if performUpkeep should fire.
+     * @dev The keeper calls this off-chain to determine if performUpkeep should fire.
      *      Computes the optimal trade size from both pools' reserves.
-     * @param checkData ABI-encoded Params (gasEstimate, margin)
      * @return upkeepNeeded True if a profitable arb exists
      * @return performData ABI-encoded (Direction, ethIn) for execution
      */
-    function checkUpkeep(bytes calldata checkData)
-        external
-        view
-        override
-        returns (bool upkeepNeeded, bytes memory performData)
-    {
-        Params memory p = abi.decode(checkData, (Params));
-
+    function checkUpkeep(bytes calldata) external view override returns (bool upkeepNeeded, bytes memory performData) {
         (Direction dir, uint256 ethIn, uint256 profit) = _quote();
-        uint256 minProfit = p.gasEstimate * tx.gasprice * p.margin / 1e18;
+        uint256 minProfit = GAS_ESTIMATE * tx.gasprice * MARGIN / 1e18;
         if (dir == Direction.None || profit < minProfit) return (false, "");
         if (address(this).balance < ethIn) return (false, "");
 
-        return (true, abi.encode(p, dir, ethIn));
+        return (true, abi.encode(dir, ethIn));
     }
 
     /**
@@ -114,15 +104,15 @@ contract UniSolid is IAutomation {
      * @dev Re-validates profitability on-chain before executing.
      *      Anyone can call this (per Chainlink Automation spec), but the
      *      on-chain profit check prevents griefing.
-     * @param performData ABI-encoded (Params, Direction, ethIn) from checkUpkeep
+     * @param performData ABI-encoded (Direction, ethIn) from checkUpkeep
      */
     function performUpkeep(bytes calldata performData) external override {
-        (Params memory p, Direction dir, uint256 ethIn) = abi.decode(performData, (Params, Direction, uint256));
+        (Direction dir, uint256 ethIn) = abi.decode(performData, (Direction, uint256));
         if (address(this).balance < ethIn) revert InsufficientBalance();
 
         // Re-validate on-chain
         (,, uint256 profit) = _quote();
-        uint256 minProfit = p.gasEstimate * tx.gasprice * p.margin / 1e18;
+        uint256 minProfit = GAS_ESTIMATE * tx.gasprice * MARGIN / 1e18;
         if (profit < minProfit) revert NoProfitableArb();
 
         if (dir == Direction.SolidToUniswap) {
