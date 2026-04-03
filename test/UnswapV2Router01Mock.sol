@@ -40,6 +40,11 @@ contract UnswapV2Router01Mock {
         return address(0);
     }
 
+    function createPair(address tokenA, address) external returns (address) {
+        token = tokenA;
+        return address(this);
+    }
+
     // ---- Pair interface ----
 
     function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 ts) {

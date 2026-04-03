@@ -179,13 +179,16 @@ contract UniSolidTest is BaseTest {
         assertEq(arb.pair(), address(router), "clone should store pair");
     }
 
-    function test_NoPairReverts() public {
+    function test_CreatesPairIfMissing() public {
         Solid nothing2 = new Solid(602_214_076 ether);
         ISolid solid2 = nothing2.make("No Pair", "NP");
 
-        // No Uniswap pair exists for solid2
-        vm.expectRevert(UniSolid.NoPair.selector);
-        proto.make(solid2);
+        // No Uniswap pair exists yet
+        assertEq(proto.FACTORY().getPair(address(solid2), proto.WETH()), address(0));
+
+        // make creates the pair
+        UniSolid arb2 = proto.make(solid2);
+        assertTrue(arb2.pair() != address(0));
     }
 
     function test_OnlyOwnerWithdraw() public {

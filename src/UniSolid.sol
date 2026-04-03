@@ -53,7 +53,6 @@ contract UniSolid is IAutomation {
 
     error Unauthorized();
     error NoProfitableArb();
-    error NoPair();
 
     modifier onlyOwner() {
         _onlyOwner();
@@ -326,7 +325,7 @@ contract UniSolid is IAutomation {
     function zzInit(address owner_, ISolid solid_) public {
         if (msg.sender != address(PROTO)) revert Unauthorized();
         address pair_ = FACTORY.getPair(address(solid_), WETH);
-        if (pair_ == address(0)) revert NoPair();
+        if (pair_ == address(0)) pair_ = FACTORY.createPair(address(solid_), WETH);
         owner = owner_;
         solid = solid_;
         pair = pair_;
