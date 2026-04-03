@@ -49,11 +49,9 @@ contract UniSolid is IAutomation {
     /**
      * @notice Parameters for a single arbitrage opportunity
      * @param minProfit Minimum profit in ETH to execute
-     * @param maxEthIn Cap on ETH trade size (limits exposure)
      */
     struct Params {
         uint256 minProfit;
-        uint256 maxEthIn;
     }
 
     /**
@@ -109,7 +107,7 @@ contract UniSolid is IAutomation {
     {
         Params memory p = abi.decode(checkData, (Params));
 
-        (Direction dir, uint256 ethIn, uint256 profit) = _quote(p);
+        (Direction dir, uint256 ethIn, uint256 profit) = _quote();
         if (dir == Direction.None || profit < p.minProfit) return (false, "");
         if (address(this).balance < ethIn) return (false, "");
 
@@ -128,7 +126,7 @@ contract UniSolid is IAutomation {
         if (address(this).balance < ethIn) revert InsufficientBalance();
 
         // Re-validate on-chain
-        (,, uint256 profit) = _quote(p);
+        (,, uint256 profit) = _quote();
         if (profit < p.minProfit) revert NoProfitableArb();
 
         if (dir == Direction.SolidToUniswap) {
@@ -142,12 +140,11 @@ contract UniSolid is IAutomation {
 
     /**
      * @notice Compute the optimal trade size and direction
-     * @param p Arbitrage parameters
      * @return dir The profitable direction (None if neither)
      * @return ethIn Optimal ETH trade size
      * @return profit Net ETH profit at optimal size
      */
-    function _quote(Params memory p) internal view returns (Direction dir, uint256 ethIn, uint256 profit) {
+    function _quote() internal view returns (Direction dir, uint256 ethIn, uint256 profit) {
         // Solid reserves
         (uint256 S, uint256 E) = solid.pool();
 
@@ -167,7 +164,6 @@ contract UniSolid is IAutomation {
                 uint256 num = sqrtSE * sqrtWT - et1000;
                 uint256 den = T * 1000 + 997 * S;
                 ethInA = num / den;
-                if (ethInA > p.maxEthIn) ethInA = p.maxEthIn;
                 if (ethInA > 0) {
                     profitA = _profitSolidToUniswap(ethInA, S, E, T, W);
                 }
@@ -187,7 +183,6 @@ contract UniSolid is IAutomation {
                 uint256 num = sqrtTW * sqrtES - ws1000;
                 uint256 den = S * 1000 + 997 * T;
                 ethInB = num / den;
-                if (ethInB > p.maxEthIn) ethInB = p.maxEthIn;
                 if (ethInB > 0) {
                     profitB = _profitUniswapToSolid(ethInB, S, E, T, W);
                 }
