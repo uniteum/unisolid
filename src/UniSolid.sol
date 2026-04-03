@@ -67,7 +67,7 @@ contract UniSolid is IAutomation {
 
     /**
      * @param routerLookup Lookup for Uniswap V2 router address
-     * @param gasMargin Gas estimate × margin multiplier (e.g. 300_000 × 1.5e18)
+     * @param gasMargin Gas estimate × margin multiplier (e.g. 300_000 × 1.5 = 450_000)
      */
     constructor(IAddressLookup routerLookup, uint256 gasMargin) {
         ROUTER = IUniswapV2Router01(routerLookup.value());
@@ -89,7 +89,7 @@ contract UniSolid is IAutomation {
      */
     function checkUpkeep(bytes calldata) external view override returns (bool upkeepNeeded, bytes memory performData) {
         (Direction dir, uint256 ethIn, uint256 profit) = _quote();
-        uint256 minProfit = GAS_MARGIN * tx.gasprice / 1e18;
+        uint256 minProfit = GAS_MARGIN * tx.gasprice;
         if (dir == Direction.None || profit < minProfit) return (false, "");
         if (address(this).balance < ethIn) return (false, "");
 
@@ -105,7 +105,7 @@ contract UniSolid is IAutomation {
     function performUpkeep(bytes calldata) external override {
         (Direction dir, uint256 ethIn, uint256 profit) = _quote();
         if (address(this).balance < ethIn) revert InsufficientBalance();
-        uint256 minProfit = GAS_MARGIN * tx.gasprice / 1e18;
+        uint256 minProfit = GAS_MARGIN * tx.gasprice;
         if (profit < minProfit) revert NoProfitableArb();
 
         if (dir == Direction.SolidToUniswap) {
