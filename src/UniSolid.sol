@@ -99,9 +99,9 @@ contract UniSolid is IAutomation {
      */
     function performUpkeep(bytes calldata) external override {
         (Direction dir, uint256 ethIn, uint256 profit) = _quote();
-        if (dir == Direction.None) revert NoProfitableArb();
-
-        if (dir == Direction.SolidToUniswap) {
+        if (dir == Direction.None) {
+            revert NoProfitableArb();
+        } else if (dir == Direction.SolidToUniswap) {
             _arbSolidToUniswap(ethIn);
         } else {
             _arbUniswapToSolid(ethIn);
@@ -161,7 +161,7 @@ contract UniSolid is IAutomation {
             }
         }
 
-        if (profitA > profitB && profitA > 0) {
+        if (profitA > profitB) {
             dir = Direction.SolidToUniswap;
             ethIn = ethInA;
             profit = profitA;
