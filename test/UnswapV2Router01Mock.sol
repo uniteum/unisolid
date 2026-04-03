@@ -42,7 +42,8 @@ contract UnswapV2Router01Mock {
 
     // ---- Pair interface ----
 
-    function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32) {
+    function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 ts) {
+        ts = 0;
         // token0 is the lower address
         if (token < weth) {
             // casting to 'uint112' is safe because test reserves are set within uint112 range
@@ -123,8 +124,12 @@ contract UnswapV2Router01Mock {
     function addLiquidityETH(address token_, uint256 amountTokenDesired, uint256, uint256, address to, uint256)
         external
         payable
-        // forge-lint: disable-next-line(mixed-case-variable)
-        returns (uint256 amountToken, uint256 amountETH, uint256 liquidity)
+        returns (
+            // forge-lint: disable-next-line(mixed-case-variable)
+            uint256 amountToken,
+            uint256 amountETH,
+            uint256 liquidity
+        )
     {
         amountToken = amountTokenDesired;
         amountETH = msg.value;
@@ -141,11 +146,14 @@ contract UnswapV2Router01Mock {
     // forge-lint: disable-next-line(mixed-case-function)
     function removeLiquidityETH(address token_, uint256 liquidity_, uint256, uint256, address to, uint256)
         external
-        // forge-lint: disable-next-line(mixed-case-variable)
-        returns (uint256 amountToken, uint256 amountETH)
+        returns (
+            // forge-lint: disable-next-line(mixed-case-variable)
+            uint256 amountToken,
+            uint256 amountETH
+        )
     {
-        amountETH = liquidity_ * reserveETH / lpSupply;
-        amountToken = liquidity_ * reserveToken / lpSupply;
+        amountETH = (liquidity_ * reserveETH) / lpSupply;
+        amountToken = (liquidity_ * reserveToken) / lpSupply;
 
         lpAllowance[msg.sender][address(this)] -= liquidity_;
         lpBalanceOf[msg.sender] -= liquidity_;
