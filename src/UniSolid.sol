@@ -40,10 +40,12 @@ contract UniSolid is IAutomation {
 
     /**
      * @notice Parameters for a single arbitrage opportunity
-     * @param minProfit Minimum profit in ETH to execute
+     * @param gasEstimate Expected gas for performUpkeep (e.g. 300_000)
+     * @param margin Multiplier over breakeven in 1e18 (e.g. 1.5e18 = 50% margin)
      */
     struct Params {
-        uint256 minProfit;
+        uint256 gasEstimate;
+        uint256 margin;
     }
 
     /**
@@ -87,7 +89,7 @@ contract UniSolid is IAutomation {
      * @dev checkData encodes a Params struct. The keeper calls this off-chain
      *      to determine if performUpkeep should fire.
      *      Computes the optimal trade size from both pools' reserves.
-     * @param checkData ABI-encoded Params (minProfit, maxEthIn)
+     * @param checkData ABI-encoded Params (gasEstimate, margin)
      * @return upkeepNeeded True if a profitable arb exists
      * @return performData ABI-encoded (Direction, ethIn) for execution
      */
@@ -100,7 +102,8 @@ contract UniSolid is IAutomation {
         Params memory p = abi.decode(checkData, (Params));
 
         (Direction dir, uint256 ethIn, uint256 profit) = _quote();
-        if (dir == Direction.None || profit < p.minProfit) return (false, "");
+        uint256 minProfit = p.gasEstimate * tx.gasprice * p.margin / 1e18;
+        if (dir == Direction.None || profit < minProfit) return (false, "");
         if (address(this).balance < ethIn) return (false, "");
 
         return (true, abi.encode(p, dir, ethIn));
@@ -119,7 +122,8 @@ contract UniSolid is IAutomation {
 
         // Re-validate on-chain
         (,, uint256 profit) = _quote();
-        if (profit < p.minProfit) revert NoProfitableArb();
+        uint256 minProfit = p.gasEstimate * tx.gasprice * p.margin / 1e18;
+        if (profit < minProfit) revert NoProfitableArb();
 
         if (dir == Direction.SolidToUniswap) {
             _arbSolidToUniswap(ethIn);

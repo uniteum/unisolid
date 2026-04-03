@@ -32,8 +32,8 @@ contract UniSolidTest is BaseTest {
         arb = proto.make(solid);
     }
 
-    function _params(uint256 minProfit) internal pure returns (UniSolid.Params memory) {
-        return UniSolid.Params({minProfit: minProfit});
+    function _params(uint256 gasEstimate, uint256 margin) internal pure returns (UniSolid.Params memory) {
+        return UniSolid.Params({gasEstimate: gasEstimate, margin: margin});
     }
 
     function _encode(UniSolid.Params memory p) internal pure returns (bytes memory) {
@@ -57,7 +57,8 @@ contract UniSolidTest is BaseTest {
         // Fund arb contract
         vm.deal(address(arb), 1 ether);
 
-        UniSolid.Params memory p = _params(0.001 ether);
+        vm.txGasPrice(10 gwei);
+        UniSolid.Params memory p = _params(300_000, 1e18);
         (bool needed,) = arb.checkUpkeep(_encode(p));
         assertFalse(needed, "should not arb when prices equal");
     }
@@ -77,7 +78,7 @@ contract UniSolidTest is BaseTest {
         // Fund arb contract
         vm.deal(address(arb), 1 ether);
 
-        UniSolid.Params memory p = _params(0);
+        UniSolid.Params memory p = _params(0, 0);
         (bool needed, bytes memory performData) = arb.checkUpkeep(_encode(p));
 
         if (needed) {
@@ -104,7 +105,7 @@ contract UniSolidTest is BaseTest {
         vm.deal(address(arb), 0.5 ether);
         vm.deal(address(solid), 5 ether);
 
-        UniSolid.Params memory p = _params(0);
+        UniSolid.Params memory p = _params(0, 0);
         (bool needed, bytes memory performData) = arb.checkUpkeep(_encode(p));
 
         if (needed) {
@@ -122,7 +123,7 @@ contract UniSolidTest is BaseTest {
         router.setPool(address(solid), 10 ether, 1_000_000 ether);
 
         // Arb contract has no ETH
-        UniSolid.Params memory p = _params(0);
+        UniSolid.Params memory p = _params(0, 0);
         (bool needed,) = arb.checkUpkeep(_encode(p));
         assertFalse(needed, "should not arb without balance");
     }
@@ -138,8 +139,9 @@ contract UniSolidTest is BaseTest {
 
         vm.deal(address(arb), 1 ether);
 
-        // Set impossibly high min profit
-        UniSolid.Params memory p = _params(1000 ether);
+        // Set impossibly high threshold: 10M gas × 1000 gwei × 1e18 margin
+        vm.txGasPrice(1000 gwei);
+        UniSolid.Params memory p = _params(10_000_000, 1e18);
         (bool needed,) = arb.checkUpkeep(_encode(p));
         assertFalse(needed, "should not arb below min profit");
     }
@@ -158,7 +160,7 @@ contract UniSolidTest is BaseTest {
         vm.deal(address(solid), 5 ether);
 
         // Get optimal ethIn from checkUpkeep
-        UniSolid.Params memory p = _params(0);
+        UniSolid.Params memory p = _params(0, 0);
         vm.deal(address(arb), 10 ether);
         (bool needed, bytes memory performData) = arb.checkUpkeep(_encode(p));
         assertTrue(needed, "should find arb");
