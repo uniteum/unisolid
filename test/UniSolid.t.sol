@@ -8,14 +8,28 @@ import {ISolid} from "isolid/ISolid.sol";
 import {IAddressLookup} from "ilookup/IAddressLookup.sol";
 import {IERC20} from "ierc20/IERC20.sol";
 import {console} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {UnswapV2Router01Mock} from "./UnswapV2Router01Mock.sol";
 import {AddressLookupMock} from "./AddressLookupMock.sol";
+
+contract ProfitHarness is UniSolid {
+    constructor(IAddressLookup lookup) UniSolid(lookup, 0) {}
+
+    function profitA(uint256 x, uint256 S, uint256 E, uint256 T, uint256 W) external pure returns (uint256) {
+        return _profitSolidToUniswap(x, S, E, T, W);
+    }
+
+    function profitB(uint256 x, uint256 S, uint256 E, uint256 T, uint256 W) external pure returns (uint256) {
+        return _profitUniswapToSolid(x, S, E, T, W);
+    }
+}
 
 contract UniSolidTest is BaseTest {
     UniSolid proto;
     UniSolid arb;
     ISolid solid;
     UnswapV2Router01Mock router;
+    ProfitHarness harness;
 
     function setUp() public override {
         super.setUp();
@@ -28,8 +42,10 @@ contract UniSolidTest is BaseTest {
         // Pair must exist before make(solid) — set up a minimal pool
         router.setPool(address(solid), 1, 1);
 
-        proto = new UniSolid(IAddressLookup(address(new AddressLookupMock(address(router)))), 0);
+        AddressLookupMock lookup = new AddressLookupMock(address(router));
+        proto = new UniSolid(IAddressLookup(address(lookup)), 0);
         arb = proto.make(solid);
+        harness = new ProfitHarness(IAddressLookup(address(lookup)));
     }
 
     function test_NoArbWhenPricesEqual() public {
@@ -233,6 +249,99 @@ contract UniSolidTest is BaseTest {
     function test_ZzInitOnlyCallableByProto() public {
         vm.expectRevert(UniSolid.Unauthorized.selector);
         arb.zzInit(address(this), solid);
+    }
+
+    function _captureEthIn() internal view returns (uint256 ethIn) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == UniSolid.Arb.selector) {
+                (, ethIn,) = abi.decode(logs[i].data, (uint8, uint256, uint256));
+                return ethIn;
+            }
+        }
+        revert("Arb event not found");
+    }
+
+    function _assertOptimal(uint256 ethIn, uint256 optProfit, uint256 S, uint256 E, uint256 T, uint256 W, bool dirA)
+        internal
+        view
+    {
+        uint256[] memory trials = new uint256[](6);
+        trials[0] = ethIn > 0 ? ethIn - 1 : 0;
+        trials[1] = ethIn + 1;
+        trials[2] = ethIn * 95 / 100;
+        trials[3] = ethIn * 105 / 100;
+        trials[4] = ethIn * 80 / 100;
+        trials[5] = ethIn * 120 / 100;
+
+        for (uint256 i = 0; i < trials.length; i++) {
+            if (trials[i] == 0 || trials[i] == ethIn) continue;
+            uint256 alt = dirA ? harness.profitA(trials[i], S, E, T, W) : harness.profitB(trials[i], S, E, T, W);
+            assertGe(optProfit, alt, "optimal ethIn should beat perturbed amount");
+        }
+    }
+
+    function test_OptimalAmount_SolidToUniswap() public {
+        // Solid cheap, Uniswap expensive
+        vm.deal(address(router), 10 ether);
+        router.setPool(address(solid), 10 ether, 1_000_000 ether);
+
+        vm.deal(address(this), 1 ether);
+        uint256 tokens = solid.buy{value: 1 ether}();
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
+        solid.transfer(address(router), tokens);
+
+        vm.deal(address(arb), 10 ether);
+
+        // Read pre-trade reserves
+        (uint256 S, uint256 E) = solid.pool();
+        uint256 T = router.reserveToken();
+        uint256 W = router.reserveETH();
+
+        // Execute and capture ethIn
+        vm.recordLogs();
+        arb.performUpkeep("");
+        uint256 ethIn = _captureEthIn();
+
+        assertTrue(ethIn > 0, "should have positive ethIn");
+        uint256 optProfit = harness.profitA(ethIn, S, E, T, W);
+        assertTrue(optProfit > 0, "should have positive profit");
+
+        _assertOptimal(ethIn, optProfit, S, E, T, W, true);
+        console.log("Direction A optimal ethIn:", ethIn);
+        console.log("Direction A optimal profit:", optProfit);
+    }
+
+    function test_OptimalAmount_UniswapToSolid() public {
+        // Solid expensive, Uniswap cheap
+        vm.deal(address(this), 10 ether);
+        solid.buy{value: 10 ether}();
+
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
+        solid.transfer(address(router), solid.balanceOf(address(this)));
+        vm.deal(address(router), 1 ether);
+        router.setPool(address(solid), 1 ether, 100_000_000 ether);
+
+        vm.deal(address(solid), 5 ether);
+        vm.deal(address(arb), 10 ether);
+
+        // Read pre-trade reserves
+        (uint256 S, uint256 E) = solid.pool();
+        uint256 T = router.reserveToken();
+        uint256 W = router.reserveETH();
+
+        // Execute and capture ethIn
+        vm.recordLogs();
+        arb.performUpkeep("");
+        uint256 ethIn = _captureEthIn();
+
+        assertTrue(ethIn > 0, "should have positive ethIn");
+        uint256 optProfit = harness.profitB(ethIn, S, E, T, W);
+        assertTrue(optProfit > 0, "should have positive profit");
+
+        _assertOptimal(ethIn, optProfit, S, E, T, W, false);
+        console.log("Direction B optimal ethIn:", ethIn);
+        console.log("Direction B optimal profit:", optProfit);
     }
 
     receive() external payable {}
