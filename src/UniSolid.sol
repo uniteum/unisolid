@@ -53,7 +53,6 @@ contract UniSolid is IAutomation {
 
     error Unauthorized();
     error NoProfitableArb();
-    error InsufficientBalance();
     error NoPair();
 
     modifier onlyOwner() {
@@ -88,12 +87,8 @@ contract UniSolid is IAutomation {
      * @return performData Unused (empty); performUpkeep recomputes from on-chain state
      */
     function checkUpkeep(bytes calldata) external view override returns (bool upkeepNeeded, bytes memory performData) {
-        (Direction dir, uint256 ethIn, uint256 profit) = _quote();
-        uint256 minProfit = GAS_MARGIN * tx.gasprice;
-        if (dir == Direction.None || profit < minProfit) return (false, "");
-        if (address(this).balance < ethIn) return (false, "");
-
-        return (true, "");
+        (Direction dir,,) = _quote();
+        return (dir != Direction.None, "");
     }
 
     /**
@@ -104,9 +99,7 @@ contract UniSolid is IAutomation {
      */
     function performUpkeep(bytes calldata) external override {
         (Direction dir, uint256 ethIn, uint256 profit) = _quote();
-        if (address(this).balance < ethIn) revert InsufficientBalance();
-        uint256 minProfit = GAS_MARGIN * tx.gasprice;
-        if (profit < minProfit) revert NoProfitableArb();
+        if (dir == Direction.None) revert NoProfitableArb();
 
         if (dir == Direction.SolidToUniswap) {
             _arbSolidToUniswap(ethIn);
@@ -169,11 +162,19 @@ contract UniSolid is IAutomation {
         }
 
         if (profitA > profitB && profitA > 0) {
-            return (Direction.SolidToUniswap, ethInA, profitA);
+            dir = Direction.SolidToUniswap;
+            ethIn = ethInA;
+            profit = profitA;
         } else if (profitB > 0) {
-            return (Direction.UniswapToSolid, ethInB, profitB);
+            dir = Direction.UniswapToSolid;
+            ethIn = ethInB;
+            profit = profitB;
+        } else {
+            return (Direction.None, 0, 0);
         }
-        return (Direction.None, 0, 0);
+
+        if (address(this).balance < ethIn) return (Direction.None, 0, 0);
+        if (profit < GAS_MARGIN * tx.gasprice) return (Direction.None, 0, 0);
     }
 
     /**
