@@ -297,49 +297,6 @@ contract UniSolid is IAutomation {
         require(token.transfer(owner, amount));
     }
 
-    /**
-     * @notice Add liquidity to the Uniswap V2 ETH/Solid pair
-     * @dev LP tokens are held by this contract. Use recover() to extract them if needed.
-     * @param amountTokenDesired Maximum tokens to deposit
-     * @param amountTokenMin Minimum tokens to deposit (slippage)
-     * @param amountEthMin Minimum ETH to deposit (slippage)
-     * @return amountToken Actual tokens deposited
-     * @return amountEth Actual ETH deposited
-     * @return liquidity LP tokens received
-     */
-    // forge-lint: disable-next-line(mixed-case-function)
-    function addLiquidityETH(uint256 amountTokenDesired, uint256 amountTokenMin, uint256 amountEthMin)
-        external
-        payable
-        onlyOwner
-        returns (uint256 amountToken, uint256 amountEth, uint256 liquidity)
-    {
-        IERC20(address(solid)).approve(address(ROUTER), amountTokenDesired);
-        (amountToken, amountEth, liquidity) = ROUTER.addLiquidityETH{value: msg.value}(
-            address(solid), amountTokenDesired, amountTokenMin, amountEthMin, address(this), block.timestamp
-        );
-    }
-
-    /**
-     * @notice Remove liquidity from the Uniswap V2 ETH/Solid pair
-     * @param liquidity Amount of LP tokens to burn
-     * @param amountTokenMin Minimum tokens to receive (slippage)
-     * @param amountEthMin Minimum ETH to receive (slippage)
-     * @return amountToken Tokens received
-     * @return amountEth ETH received
-     */
-    // forge-lint: disable-next-line(mixed-case-function)
-    function removeLiquidityETH(uint256 liquidity, uint256 amountTokenMin, uint256 amountEthMin)
-        external
-        onlyOwner
-        returns (uint256 amountToken, uint256 amountEth)
-    {
-        IERC20(pair).approve(address(ROUTER), liquidity);
-        (amountToken, amountEth) = ROUTER.removeLiquidityETH(
-            address(solid), liquidity, amountTokenMin, amountEthMin, address(this), block.timestamp
-        );
-    }
-
     // ---- Factory (Bitsy) ----
 
     /**

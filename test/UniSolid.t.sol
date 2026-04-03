@@ -204,56 +204,6 @@ contract UniSolidTest is BaseTest {
         arb.recover(IERC20(address(solid)), 1 ether);
     }
 
-    function test_AddLiquidityETH() public {
-        // Buy tokens on Solid and transfer to arb contract
-        vm.deal(address(this), 2 ether);
-        uint256 tokens = solid.buy{value: 1 ether}();
-        // forge-lint: disable-next-line(erc20-unchecked-transfer)
-        solid.transfer(address(arb), tokens);
-
-        // Add liquidity: arb sends ETH + tokens to router
-        vm.deal(address(arb), 1 ether);
-        arb.addLiquidityETH{value: 0.5 ether}(tokens, 0, 0);
-
-        assertGt(router.lpBalanceOf(address(arb)), 0, "should have LP tokens");
-        assertEq(router.lpBalanceOf(address(arb)), 0.5 ether, "LP tokens should equal ETH sent");
-    }
-
-    function test_RemoveLiquidityETH() public {
-        // Reset mock reserves so only addLiquidity tokens are tracked
-        router.setPool(address(solid), 0, 0);
-
-        // Setup: buy tokens, transfer to arb, add liquidity
-        vm.deal(address(this), 2 ether);
-        uint256 tokens = solid.buy{value: 1 ether}();
-        // forge-lint: disable-next-line(erc20-unchecked-transfer)
-        solid.transfer(address(arb), tokens);
-
-        vm.deal(address(arb), 1 ether);
-        arb.addLiquidityETH{value: 0.5 ether}(tokens, 0, 0);
-
-        uint256 lp = router.lpBalanceOf(address(arb));
-        uint256 balBefore = address(arb).balance;
-
-        // Remove all liquidity (pair == router in mock)
-        arb.removeLiquidityETH(lp, 0, 0);
-
-        assertEq(router.lpBalanceOf(address(arb)), 0, "LP tokens should be burned");
-        assertGt(address(arb).balance, balBefore, "should have received ETH back");
-    }
-
-    function test_OnlyOwnerAddLiquidity() public {
-        vm.prank(address(0xdead));
-        vm.expectRevert(UniSolid.Unauthorized.selector);
-        arb.addLiquidityETH(0, 0, 0);
-    }
-
-    function test_OnlyOwnerRemoveLiquidity() public {
-        vm.prank(address(0xdead));
-        vm.expectRevert(UniSolid.Unauthorized.selector);
-        arb.removeLiquidityETH(0, 0, 0);
-    }
-
     // ---- Factory tests ----
 
     function test_MadePredictsAddress() public view {
