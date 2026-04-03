@@ -45,10 +45,15 @@ contract UnswapV2Router01Mock {
     function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32) {
         // token0 is the lower address
         if (token < weth) {
+            // casting to 'uint112' is safe because test reserves are set within uint112 range
+            // forge-lint: disable-next-line(unsafe-typecast)
             reserve0 = uint112(reserveToken);
+            // forge-lint: disable-next-line(unsafe-typecast)
             reserve1 = uint112(reserveETH);
         } else {
+            // forge-lint: disable-next-line(unsafe-typecast)
             reserve0 = uint112(reserveETH);
+            // forge-lint: disable-next-line(unsafe-typecast)
             reserve1 = uint112(reserveToken);
         }
     }

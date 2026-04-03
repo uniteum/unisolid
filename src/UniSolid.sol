@@ -157,11 +157,11 @@ contract UniSolid is IAutomation {
         uint256 ethInA;
         uint256 profitA;
         {
-            uint256 sqrtSE = Math.sqrt(997_000 * S * E);
-            uint256 sqrtWT = Math.sqrt(W * T);
+            uint256 sqrtSe = Math.sqrt(997_000 * S * E);
+            uint256 sqrtWt = Math.sqrt(W * T);
             uint256 et1000 = E * T * 1000;
-            if (sqrtSE * sqrtWT > et1000) {
-                uint256 num = sqrtSE * sqrtWT - et1000;
+            if (sqrtSe * sqrtWt > et1000) {
+                uint256 num = sqrtSe * sqrtWt - et1000;
                 uint256 den = T * 1000 + 997 * S;
                 ethInA = num / den;
                 if (ethInA > 0) {
@@ -176,11 +176,11 @@ contract UniSolid is IAutomation {
         uint256 ethInB;
         uint256 profitB;
         {
-            uint256 sqrtTW = Math.sqrt(997_000 * T * W);
-            uint256 sqrtES = Math.sqrt(E * S);
+            uint256 sqrtTw = Math.sqrt(997_000 * T * W);
+            uint256 sqrtEs = Math.sqrt(E * S);
             uint256 ws1000 = W * S * 1000;
-            if (sqrtTW * sqrtES > ws1000) {
-                uint256 num = sqrtTW * sqrtES - ws1000;
+            if (sqrtTw * sqrtEs > ws1000) {
+                uint256 num = sqrtTw * sqrtEs - ws1000;
                 uint256 den = S * 1000 + 997 * T;
                 ethInB = num / den;
                 if (ethInB > 0) {
