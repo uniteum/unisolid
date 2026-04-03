@@ -88,7 +88,7 @@ contract UniSolid is IAutomation {
      * @dev The keeper calls this off-chain to determine if performUpkeep should fire.
      *      Computes the optimal trade size from both pools' reserves.
      * @return upkeepNeeded True if a profitable arb exists
-     * @return performData ABI-encoded (Direction, ethIn) for execution
+     * @return performData Unused (empty); performUpkeep recomputes from on-chain state
      */
     function checkUpkeep(bytes calldata) external view override returns (bool upkeepNeeded, bytes memory performData) {
         (Direction dir, uint256 ethIn, uint256 profit) = _quote();
@@ -96,22 +96,18 @@ contract UniSolid is IAutomation {
         if (dir == Direction.None || profit < minProfit) return (false, "");
         if (address(this).balance < ethIn) return (false, "");
 
-        return (true, abi.encode(dir, ethIn));
+        return (true, "");
     }
 
     /**
      * @notice Execute the arbitrage
-     * @dev Re-validates profitability on-chain before executing.
+     * @dev Computes direction and size from current on-chain state.
      *      Anyone can call this (per Chainlink Automation spec), but the
      *      on-chain profit check prevents griefing.
-     * @param performData ABI-encoded (Direction, ethIn) from checkUpkeep
      */
-    function performUpkeep(bytes calldata performData) external override {
-        (Direction dir, uint256 ethIn) = abi.decode(performData, (Direction, uint256));
+    function performUpkeep(bytes calldata) external override {
+        (Direction dir, uint256 ethIn, uint256 profit) = _quote();
         if (address(this).balance < ethIn) revert InsufficientBalance();
-
-        // Re-validate on-chain
-        (,, uint256 profit) = _quote();
         uint256 minProfit = GAS_ESTIMATE * tx.gasprice * MARGIN / 1e18;
         if (profit < minProfit) revert NoProfitableArb();
 

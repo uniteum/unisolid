@@ -69,11 +69,11 @@ contract UniSolidTest is BaseTest {
         // Fund arb contract
         vm.deal(address(arb), 1 ether);
 
-        (bool needed, bytes memory performData) = arb.checkUpkeep("");
+        (bool needed,) = arb.checkUpkeep("");
 
         if (needed) {
             uint256 balBefore = address(arb).balance;
-            arb.performUpkeep(performData);
+            arb.performUpkeep("");
             uint256 balAfter = address(arb).balance;
             assertGt(balAfter, balBefore, "should profit from arb");
             console.log("Profit:", balAfter - balBefore);
@@ -95,11 +95,11 @@ contract UniSolidTest is BaseTest {
         vm.deal(address(arb), 0.5 ether);
         vm.deal(address(solid), 5 ether);
 
-        (bool needed, bytes memory performData) = arb.checkUpkeep("");
+        (bool needed,) = arb.checkUpkeep("");
 
         if (needed) {
             uint256 balBefore = address(arb).balance;
-            arb.performUpkeep(performData);
+            arb.performUpkeep("");
             uint256 balAfter = address(arb).balance;
             assertGt(balAfter, balBefore, "should profit from arb");
             console.log("Profit:", balAfter - balBefore);
@@ -136,7 +136,7 @@ contract UniSolidTest is BaseTest {
         assertFalse(needed, "should not arb below min profit");
     }
 
-    function test_OptimalSizeBetterThanFixed() public {
+    function test_OptimalSizeExecutes() public {
         // Set up a moderate price discrepancy
         vm.deal(address(this), 3 ether);
         solid.buy{value: 3 ether}();
@@ -149,14 +149,14 @@ contract UniSolidTest is BaseTest {
 
         vm.deal(address(solid), 5 ether);
 
-        // Get optimal ethIn from checkUpkeep
+        // Verify arb is found and executes profitably
         vm.deal(address(arb), 10 ether);
-        (bool needed, bytes memory performData) = arb.checkUpkeep("");
+        (bool needed,) = arb.checkUpkeep("");
         assertTrue(needed, "should find arb");
 
-        (, uint256 optimalEthIn) = abi.decode(performData, (UniSolid.Direction, uint256));
-        assertGt(optimalEthIn, 0, "optimal ethIn should be positive");
-        console.log("Optimal ethIn:", optimalEthIn);
+        uint256 balBefore = address(arb).balance;
+        arb.performUpkeep("");
+        assertGt(address(arb).balance, balBefore, "should profit from optimal arb");
     }
 
     function test_StoredSolidAndPair() public view {
