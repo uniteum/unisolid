@@ -125,8 +125,8 @@ contract UnswapV2Router01Mock {
         external
         payable
         returns (
-            // forge-lint: disable-next-line(mixed-case-variable)
             uint256 amountToken,
+            // forge-lint: disable-next-line(mixed-case-variable)
             uint256 amountETH,
             uint256 liquidity
         )
@@ -147,8 +147,8 @@ contract UnswapV2Router01Mock {
     function removeLiquidityETH(address token_, uint256 liquidity_, uint256, uint256, address to, uint256)
         external
         returns (
-            // forge-lint: disable-next-line(mixed-case-variable)
             uint256 amountToken,
+            // forge-lint: disable-next-line(mixed-case-variable)
             uint256 amountETH
         )
     {
