@@ -254,6 +254,62 @@ contract UniSolidTest is BaseTest {
         arb.zzInit(address(this), solid);
     }
 
+    // ---- Liquidity tests ----
+
+    function test_SolidToUniswap() public {
+        // Buy tokens on Solid so arb has some
+        vm.deal(address(arb), 5 ether);
+        vm.prank(address(arb));
+        uint256 tokens = solid.buy{value: 5 ether}();
+
+        // Set up Uniswap pool with matching reserves
+        (uint256 S, uint256 E) = solid.pool();
+        vm.deal(address(router), E);
+        router.setPool(address(solid), E, S);
+
+        // Execute solidToUniswap
+        uint256 lpBefore = router.lpBalanceOf(address(arb));
+        arb.solidToUniswap(tokens);
+        uint256 lpAfter = router.lpBalanceOf(address(arb));
+
+        assertGt(lpAfter, lpBefore, "should receive LP tokens");
+        assertEq(IERC20(address(solid)).balanceOf(address(arb)), 0, "should use all solid tokens");
+    }
+
+    function test_UniswapToSolid() public {
+        // Start with empty pool so all liquidity comes from solidToUniswap
+        router.setPool(address(solid), 0, 0);
+
+        // Buy tokens and add liquidity
+        vm.deal(address(arb), 5 ether);
+        vm.prank(address(arb));
+        uint256 tokens = solid.buy{value: 5 ether}();
+
+        arb.solidToUniswap(tokens);
+        uint256 lp = router.lpBalanceOf(address(arb));
+        assertGt(lp, 0, "should have LP tokens");
+
+        // Now convert back
+        uint256 solidBefore = IERC20(address(solid)).balanceOf(address(arb));
+        arb.uniswapToSolid(lp);
+        uint256 solidAfter = IERC20(address(solid)).balanceOf(address(arb));
+
+        assertGt(solidAfter, solidBefore, "should receive solid tokens");
+        assertEq(router.lpBalanceOf(address(arb)), 0, "should burn all LP tokens");
+    }
+
+    function test_OnlyOwnerSolidToUniswap() public {
+        vm.prank(address(0xdead));
+        vm.expectRevert(UniSolid.Unauthorized.selector);
+        arb.solidToUniswap(1 ether);
+    }
+
+    function test_OnlyOwnerUniswapToSolid() public {
+        vm.prank(address(0xdead));
+        vm.expectRevert(UniSolid.Unauthorized.selector);
+        arb.uniswapToSolid(1 ether);
+    }
+
     function _captureEthIn() internal view returns (uint256 ethIn) {
         Vm.Log[] memory logs = vm.getRecordedLogs();
         for (uint256 i = 0; i < logs.length; i++) {
