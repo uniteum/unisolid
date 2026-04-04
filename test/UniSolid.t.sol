@@ -11,6 +11,7 @@ import {console} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {UnswapV2Router01Mock} from "./UnswapV2Router01Mock.sol";
 import {AddressLookupMock} from "./AddressLookupMock.sol";
+import {Math} from "math/Math.sol";
 
 contract ProfitHarness is UniSolid {
     constructor(IAddressLookup lookup) UniSolid(lookup, 0) {}
@@ -348,19 +349,40 @@ contract UniSolidTest is BaseTest {
         internal
         view
     {
-        uint256[] memory trials = new uint256[](6);
+        // Sweep a fine grid: the optimal should beat every sample point
+        uint256[] memory trials = new uint256[](10);
         trials[0] = eth > 0 ? eth - 1 : 0;
         trials[1] = eth + 1;
         trials[2] = eth * 95 / 100;
         trials[3] = eth * 105 / 100;
         trials[4] = eth * 80 / 100;
         trials[5] = eth * 120 / 100;
+        trials[6] = eth * 50 / 100;
+        trials[7] = eth * 150 / 100;
+        trials[8] = eth * 200 / 100;
+        trials[9] = eth * 10 / 100;
 
         for (uint256 i = 0; i < trials.length; i++) {
             if (trials[i] == 0 || trials[i] == eth) continue;
             uint256 alt = dirA ? harness.profitA(trials[i], S, E, T, W) : harness.profitB(trials[i], S, E, T, W);
             assertGe(optProfit, alt, "optimal eth should beat perturbed amount");
         }
+
+        // Cross-check: verify eth matches the closed-form formula independently
+        // Optimal x = (sqrt(997_000 * a * b) * sqrt(c * d) - cross) / den
+        // where for dirA: a=S, b=E, c=W, d=T, cross=E*T*1000, den=T*1000+997*S
+        //       for dirB: a=T, b=W, c=E, d=S, cross=S*W*1000, den=S*1000+997*T
+        uint256 expected;
+        if (dirA) {
+            uint256 sqrtProduct = Math.sqrt(997_000 * S * E) * Math.sqrt(W * T);
+            uint256 cross = E * T * 1000;
+            if (sqrtProduct > cross) expected = (sqrtProduct - cross) / (T * 1000 + 997 * S);
+        } else {
+            uint256 sqrtProduct = Math.sqrt(997_000 * T * W) * Math.sqrt(E * S);
+            uint256 cross = S * W * 1000;
+            if (sqrtProduct > cross) expected = (sqrtProduct - cross) / (S * 1000 + 997 * T);
+        }
+        assertEq(eth, expected, "eth should match closed-form optimal");
     }
 
     function test_OptimalAmount_SolidToUniswap() public {
