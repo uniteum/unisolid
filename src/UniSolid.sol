@@ -56,6 +56,7 @@ contract UniSolid is IAutomation {
 
     error Unauthorized();
     error NoProfitableArb();
+    error NoLink();
 
     modifier onlyOwner() {
         _onlyOwner();
@@ -83,7 +84,9 @@ contract UniSolid is IAutomation {
         ROUTER = IUniswapV2Router01(routerLookup.value());
         FACTORY = IUniswapV2Factory(ROUTER.factory());
         WETH = ROUTER.WETH();
-        LINK = IERC20(linkLookup.value());
+        address link = linkLookup.value();
+        if (link == address(0)) revert NoLink();
+        LINK = IERC20(link);
         GAS_MARGIN = gasMargin;
         LINK_MIN = linkMin;
         LINK_ETH = linkEth;
@@ -130,7 +133,6 @@ contract UniSolid is IAutomation {
      * @notice Buy LINK from the router if balance is below minimum
      */
     function _topOffLink() internal {
-        if (LINK_ETH == 0) return;
         if (LINK.balanceOf(address(this)) >= LINK_MIN) return;
         if (address(this).balance < LINK_ETH) return;
 

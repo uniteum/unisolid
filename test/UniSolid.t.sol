@@ -11,6 +11,7 @@ import {console} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {UnswapV2Router01Mock} from "./UnswapV2Router01Mock.sol";
 import {AddressLookupMock} from "./AddressLookupMock.sol";
+import {ERC20Mock} from "./ERC20Mock.sol";
 import {Math} from "math/Math.sol";
 
 contract ProfitHarness is UniSolid {
@@ -30,6 +31,7 @@ contract UniSolidTest is BaseTest {
     UniSolid arb;
     ISolid solid;
     UnswapV2Router01Mock router;
+    ERC20Mock link;
     ProfitHarness harness;
 
     function setUp() public override {
@@ -43,8 +45,10 @@ contract UniSolidTest is BaseTest {
         // Pair must exist before make(solid) — set up a minimal pool
         router.setPool(address(solid), 1, 1);
 
+        link = new ERC20Mock();
+
         AddressLookupMock lookup = new AddressLookupMock(address(router));
-        AddressLookupMock linkLookup = new AddressLookupMock(address(0x114C));
+        AddressLookupMock linkLookup = new AddressLookupMock(address(link));
         proto = new UniSolid(IAddressLookup(address(lookup)), IAddressLookup(address(linkLookup)), 0, 0, 0);
         arb = proto.make(solid);
         harness = new ProfitHarness(IAddressLookup(address(lookup)), IAddressLookup(address(linkLookup)));
@@ -169,7 +173,7 @@ contract UniSolidTest is BaseTest {
         // Deploy a proto with impossibly high threshold
         UniSolid highProto = new UniSolid(
             IAddressLookup(address(new AddressLookupMock(address(router)))),
-            IAddressLookup(address(new AddressLookupMock(address(0x114C)))),
+            IAddressLookup(address(new AddressLookupMock(address(link)))),
             10_000_000,
             0,
             0
@@ -446,6 +450,92 @@ contract UniSolidTest is BaseTest {
         _assertOptimal(eth, optProfit, S, E, T, W, false);
         console.log("Direction B optimal eth:", eth);
         console.log("Direction B optimal profit:", optProfit);
+    }
+
+    // ---- LINK top-off tests ----
+
+    function _linkProto(uint256 linkMin, uint256 linkEth) internal returns (UniSolid) {
+        return new UniSolid(
+            IAddressLookup(address(new AddressLookupMock(address(router)))),
+            IAddressLookup(address(new AddressLookupMock(address(link)))),
+            0,
+            linkMin,
+            linkEth
+        );
+    }
+
+    function _setupArb() internal {
+        // Solid cheap, Uniswap expensive
+        vm.deal(address(router), 10 ether);
+        router.setPool(address(solid), 10 ether, 1_000_000 ether);
+
+        vm.deal(address(this), 1 ether);
+        uint256 tokens = solid.buy{value: 1 ether}();
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
+        solid.transfer(address(router), tokens);
+    }
+
+    function _setupLinkPool(uint256 ethReserve, uint256 tokenReserve) internal {
+        link.mint(address(router), tokenReserve);
+        vm.deal(address(router), address(router).balance + ethReserve);
+        router.setPool(address(link), ethReserve, tokenReserve);
+        // Restore primary token for pair interface
+        router.setPool(address(solid), router.poolETH(address(solid)), router.poolToken(address(solid)));
+    }
+
+    function test_LinkTopOff() public {
+        _setupArb();
+        _setupLinkPool(10 ether, 10_000 ether);
+
+        UniSolid linkProto = _linkProto(100 ether, 0.01 ether);
+        UniSolid linkArb = linkProto.make(solid);
+        vm.deal(address(linkArb), 1 ether);
+
+        // LINK balance is 0, below LINK_MIN — performUpkeep should arb and top off
+        assertEq(link.balanceOf(address(linkArb)), 0);
+        linkArb.performUpkeep("");
+        assertGt(link.balanceOf(address(linkArb)), 0, "should have acquired LINK");
+    }
+
+    function test_LinkTopOffSkipsWhenAboveMin() public {
+        _setupArb();
+        _setupLinkPool(10 ether, 10_000 ether);
+
+        UniSolid linkProto = _linkProto(100 ether, 0.01 ether);
+        UniSolid linkArb = linkProto.make(solid);
+        vm.deal(address(linkArb), 1 ether);
+
+        // Pre-fund with enough LINK
+        link.mint(address(linkArb), 200 ether);
+        uint256 linkBefore = link.balanceOf(address(linkArb));
+
+        linkArb.performUpkeep("");
+        assertEq(link.balanceOf(address(linkArb)), linkBefore, "should not buy more LINK");
+    }
+
+    function test_LinkBootstrap() public {
+        // Deploy with LINK top-off enabled, no initial LINK balance
+        _setupArb();
+        _setupLinkPool(10 ether, 10_000 ether);
+
+        UniSolid linkProto = _linkProto(100 ether, 0.01 ether);
+        UniSolid linkArb = linkProto.make(solid);
+
+        // Bootstrap: just send ETH, then performUpkeep should arb + acquire LINK
+        vm.deal(address(linkArb), 1 ether);
+        assertEq(link.balanceOf(address(linkArb)), 0, "no LINK before bootstrap");
+
+        uint256 ethBefore = address(linkArb).balance;
+        linkArb.performUpkeep("");
+        assertGt(address(linkArb).balance, ethBefore - 1 ether, "should still have ETH after arb");
+        assertGt(link.balanceOf(address(linkArb)), 0, "should have LINK after bootstrap");
+    }
+
+    function test_ConstructorRevertsIfNoLink() public {
+        AddressLookupMock routerLookup_ = new AddressLookupMock(address(router));
+        AddressLookupMock zeroLookup = new AddressLookupMock(address(0));
+        vm.expectRevert(UniSolid.NoLink.selector);
+        new UniSolid(IAddressLookup(address(routerLookup_)), IAddressLookup(address(zeroLookup)), 0, 0, 0);
     }
 
     receive() external payable {}
