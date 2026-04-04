@@ -33,7 +33,10 @@ contract UniSolid is IAutomation {
     IUniswapV2Router01 public immutable ROUTER;
     IUniswapV2Factory public immutable FACTORY;
     address public immutable WETH;
+    IERC20 public immutable LINK;
     uint256 public immutable GAS_MARGIN;
+    uint256 public immutable LINK_MIN;
+    uint256 public immutable LINK_ETH;
 
     address public owner;
     ISolid public solid;
@@ -65,13 +68,25 @@ contract UniSolid is IAutomation {
 
     /**
      * @param routerLookup Lookup for Uniswap V2 router address
+     * @param linkLookup Lookup for chain-local LINK token address
      * @param gasMargin Gas estimate × margin multiplier (e.g. 300_000 × 1.5 = 450_000)
+     * @param linkMin Minimum LINK balance before top-off triggers
+     * @param linkEth Amount of ETH to spend topping off LINK
      */
-    constructor(IAddressLookup routerLookup, uint256 gasMargin) {
+    constructor(
+        IAddressLookup routerLookup,
+        IAddressLookup linkLookup,
+        uint256 gasMargin,
+        uint256 linkMin,
+        uint256 linkEth
+    ) {
         ROUTER = IUniswapV2Router01(routerLookup.value());
         FACTORY = IUniswapV2Factory(ROUTER.factory());
         WETH = ROUTER.WETH();
+        LINK = IERC20(linkLookup.value());
         GAS_MARGIN = gasMargin;
+        LINK_MIN = linkMin;
+        LINK_ETH = linkEth;
     }
 
     receive() external payable {}
@@ -107,6 +122,23 @@ contract UniSolid is IAutomation {
         }
 
         emit Arb(solid, dir, eth, profit);
+
+        _topOffLink();
+    }
+
+    /**
+     * @notice Buy LINK from the router if balance is below minimum
+     */
+    function _topOffLink() internal {
+        if (LINK_ETH == 0) return;
+        if (LINK.balanceOf(address(this)) >= LINK_MIN) return;
+        if (address(this).balance < LINK_ETH) return;
+
+        address[] memory path = new address[](2);
+        path[0] = WETH;
+        path[1] = address(LINK);
+
+        ROUTER.swapExactETHForTokens{value: LINK_ETH}(0, path, address(this), block.timestamp);
     }
 
     uint256 constant UNI_FEE_NUM = 997;

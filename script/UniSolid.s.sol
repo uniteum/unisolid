@@ -14,15 +14,19 @@ import {IAddressLookup} from "ilookup/IAddressLookup.sol";
  */
 contract UniSolidDeploy is Script {
     uint256 constant GAS_MARGIN = 450_000;
+    uint256 constant LINK_MIN = 1 ether;
+    uint256 constant LINK_ETH = 0.01 ether;
 
     function run() external {
-        string memory path =
-            string.concat("io/", vm.envString("env"), "/", vm.envString("chain"), "/UniswapV2Router.json");
-        address routerLookup = vm.parseJsonAddress(vm.readFile(path), "");
+        string memory base = string.concat("io/", vm.envString("env"), "/", vm.envString("chain"), "/");
+        address routerLookup = vm.parseJsonAddress(vm.readFile(string.concat(base, "UniswapV2Router.json")), "");
+        address linkLookup = vm.parseJsonAddress(vm.readFile(string.concat(base, "LINK.json")), "");
 
         vm.startBroadcast();
 
-        UniSolid unisolid = new UniSolid{salt: 0x0}(IAddressLookup(routerLookup), GAS_MARGIN);
+        UniSolid unisolid = new UniSolid{salt: 0x0}(
+            IAddressLookup(routerLookup), IAddressLookup(linkLookup), GAS_MARGIN, LINK_MIN, LINK_ETH
+        );
         console2.log("UniSolid protofactory deployed at:", address(unisolid));
 
         vm.stopBroadcast();

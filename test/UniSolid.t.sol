@@ -14,7 +14,7 @@ import {AddressLookupMock} from "./AddressLookupMock.sol";
 import {Math} from "math/Math.sol";
 
 contract ProfitHarness is UniSolid {
-    constructor(IAddressLookup lookup) UniSolid(lookup, 0) {}
+    constructor(IAddressLookup routerLookup, IAddressLookup linkLookup) UniSolid(routerLookup, linkLookup, 0, 0, 0) {}
 
     function profitA(uint256 x, uint256 S, uint256 E, uint256 T, uint256 W) external pure returns (uint256) {
         return _profitSolidToUniswap(x, S, E, T, W);
@@ -44,9 +44,10 @@ contract UniSolidTest is BaseTest {
         router.setPool(address(solid), 1, 1);
 
         AddressLookupMock lookup = new AddressLookupMock(address(router));
-        proto = new UniSolid(IAddressLookup(address(lookup)), 0);
+        AddressLookupMock linkLookup = new AddressLookupMock(address(0x114C));
+        proto = new UniSolid(IAddressLookup(address(lookup)), IAddressLookup(address(linkLookup)), 0, 0, 0);
         arb = proto.make(solid);
-        harness = new ProfitHarness(IAddressLookup(address(lookup)));
+        harness = new ProfitHarness(IAddressLookup(address(lookup)), IAddressLookup(address(linkLookup)));
     }
 
     function test_NoArbWhenPricesEqual() public {
@@ -166,7 +167,13 @@ contract UniSolidTest is BaseTest {
         solid.transfer(address(router), tokens);
 
         // Deploy a proto with impossibly high threshold
-        UniSolid highProto = new UniSolid(IAddressLookup(address(new AddressLookupMock(address(router)))), 10_000_000);
+        UniSolid highProto = new UniSolid(
+            IAddressLookup(address(new AddressLookupMock(address(router)))),
+            IAddressLookup(address(new AddressLookupMock(address(0x114C)))),
+            10_000_000,
+            0,
+            0
+        );
         UniSolid highArb = highProto.make(solid);
         vm.deal(address(highArb), 1 ether);
 
