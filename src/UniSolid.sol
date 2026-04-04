@@ -193,15 +193,15 @@ contract UniSolid is IAutomation {
     /**
      * @notice Constant-product swap: out = rOut * amountIn / (rIn + amountIn)
      */
-    function _swap(uint256 amountIn, uint256 rIn, uint256 rOut) internal pure returns (uint256) {
-        return rOut * amountIn / (rIn + amountIn);
+    function _swap(uint256 e, uint256 E, uint256 S) internal pure returns (uint256) {
+        return S * e / (E + e);
     }
 
     /**
      * @notice Uniswap V2 swap with 0.3% fee applied to input
      */
-    function _uniswap(uint256 amountIn, uint256 rIn, uint256 rOut) internal pure returns (uint256) {
-        return _swap(amountIn * UNI_FEE_NUM / UNI_FEE_DEN, rIn, rOut);
+    function _uniswap(uint256 e, uint256 T, uint256 W) internal pure returns (uint256) {
+        return _swap(e * UNI_FEE_NUM / UNI_FEE_DEN, T, W);
     }
 
     /**
