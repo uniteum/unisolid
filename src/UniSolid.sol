@@ -265,9 +265,7 @@ contract UniSolid is IAutomation {
      */
     function takeLiquidity(uint256 n) external onlyOwner {
         IERC20(pair).approve(address(ROUTER), n);
-
         (uint256 amountToken,) = ROUTER.removeLiquidityETH(address(solid), n, 0, 0, address(this), block.timestamp);
-
         solid.sell(amountToken);
     }
 
