@@ -310,33 +310,33 @@ contract UniSolidTest is BaseTest {
         arb.uniswapToSolid(1 ether);
     }
 
-    function _captureEthIn() internal view returns (uint256 ethIn) {
+    function _captureEthIn() internal view returns (uint256 eth) {
         Vm.Log[] memory logs = vm.getRecordedLogs();
         for (uint256 i = 0; i < logs.length; i++) {
             if (logs[i].topics[0] == UniSolid.Arb.selector) {
-                (, ethIn,) = abi.decode(logs[i].data, (uint8, uint256, uint256));
-                return ethIn;
+                (, eth,) = abi.decode(logs[i].data, (uint8, uint256, uint256));
+                return eth;
             }
         }
         revert("Arb event not found");
     }
 
-    function _assertOptimal(uint256 ethIn, uint256 optProfit, uint256 S, uint256 E, uint256 T, uint256 W, bool dirA)
+    function _assertOptimal(uint256 eth, uint256 optProfit, uint256 S, uint256 E, uint256 T, uint256 W, bool dirA)
         internal
         view
     {
         uint256[] memory trials = new uint256[](6);
-        trials[0] = ethIn > 0 ? ethIn - 1 : 0;
-        trials[1] = ethIn + 1;
-        trials[2] = ethIn * 95 / 100;
-        trials[3] = ethIn * 105 / 100;
-        trials[4] = ethIn * 80 / 100;
-        trials[5] = ethIn * 120 / 100;
+        trials[0] = eth > 0 ? eth - 1 : 0;
+        trials[1] = eth + 1;
+        trials[2] = eth * 95 / 100;
+        trials[3] = eth * 105 / 100;
+        trials[4] = eth * 80 / 100;
+        trials[5] = eth * 120 / 100;
 
         for (uint256 i = 0; i < trials.length; i++) {
-            if (trials[i] == 0 || trials[i] == ethIn) continue;
+            if (trials[i] == 0 || trials[i] == eth) continue;
             uint256 alt = dirA ? harness.profitA(trials[i], S, E, T, W) : harness.profitB(trials[i], S, E, T, W);
-            assertGe(optProfit, alt, "optimal ethIn should beat perturbed amount");
+            assertGe(optProfit, alt, "optimal eth should beat perturbed amount");
         }
     }
 
@@ -357,17 +357,17 @@ contract UniSolidTest is BaseTest {
         uint256 T = router.reserveToken();
         uint256 W = router.reserveETH();
 
-        // Execute and capture ethIn
+        // Execute and capture eth
         vm.recordLogs();
         arb.performUpkeep("");
-        uint256 ethIn = _captureEthIn();
+        uint256 eth = _captureEthIn();
 
-        assertTrue(ethIn > 0, "should have positive ethIn");
-        uint256 optProfit = harness.profitA(ethIn, S, E, T, W);
+        assertTrue(eth > 0, "should have positive eth");
+        uint256 optProfit = harness.profitA(eth, S, E, T, W);
         assertTrue(optProfit > 0, "should have positive profit");
 
-        _assertOptimal(ethIn, optProfit, S, E, T, W, true);
-        console.log("Direction A optimal ethIn:", ethIn);
+        _assertOptimal(eth, optProfit, S, E, T, W, true);
+        console.log("Direction A optimal eth:", eth);
         console.log("Direction A optimal profit:", optProfit);
     }
 
@@ -389,17 +389,17 @@ contract UniSolidTest is BaseTest {
         uint256 T = router.reserveToken();
         uint256 W = router.reserveETH();
 
-        // Execute and capture ethIn
+        // Execute and capture eth
         vm.recordLogs();
         arb.performUpkeep("");
-        uint256 ethIn = _captureEthIn();
+        uint256 eth = _captureEthIn();
 
-        assertTrue(ethIn > 0, "should have positive ethIn");
-        uint256 optProfit = harness.profitB(ethIn, S, E, T, W);
+        assertTrue(eth > 0, "should have positive eth");
+        uint256 optProfit = harness.profitB(eth, S, E, T, W);
         assertTrue(optProfit > 0, "should have positive profit");
 
-        _assertOptimal(ethIn, optProfit, S, E, T, W, false);
-        console.log("Direction B optimal ethIn:", ethIn);
+        _assertOptimal(eth, optProfit, S, E, T, W, false);
+        console.log("Direction B optimal eth:", eth);
         console.log("Direction B optimal profit:", optProfit);
     }
 

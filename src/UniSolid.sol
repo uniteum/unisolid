@@ -49,7 +49,7 @@ contract UniSolid is IAutomation {
     }
 
     event Make(UniSolid indexed clone, address indexed owner, ISolid indexed solid);
-    event Arb(ISolid indexed solid, Direction direction, uint256 ethIn, uint256 profit);
+    event Arb(ISolid indexed solid, Direction direction, uint256 eth, uint256 profit);
 
     error Unauthorized();
     error NoProfitableArb();
@@ -97,25 +97,25 @@ contract UniSolid is IAutomation {
      *      on-chain profit check prevents griefing.
      */
     function performUpkeep(bytes calldata) external override {
-        (Direction dir, uint256 ethIn, uint256 profit) = _quote();
+        (Direction dir, uint256 eth, uint256 profit) = _quote();
         if (dir == Direction.None) {
             revert NoProfitableArb();
         } else if (dir == Direction.SolidToUniswap) {
-            _arbSolidToUniswap(ethIn);
+            _arbSolidToUniswap(eth);
         } else {
-            _arbUniswapToSolid(ethIn);
+            _arbUniswapToSolid(eth);
         }
 
-        emit Arb(solid, dir, ethIn, profit);
+        emit Arb(solid, dir, eth, profit);
     }
 
     /**
      * @notice Compute the optimal trade size and direction
      * @return dir The profitable direction (None if neither)
-     * @return ethIn Optimal ETH trade size
+     * @return eth Optimal ETH trade size
      * @return profit Net ETH profit at optimal size
      */
-    function _quote() internal view returns (Direction dir, uint256 ethIn, uint256 profit) {
+    function _quote() internal view returns (Direction dir, uint256 eth, uint256 profit) {
         // Solid reserves
         (uint256 S, uint256 E) = solid.pool();
 
@@ -125,7 +125,7 @@ contract UniSolid is IAutomation {
         // Direction A: Solid cheap → buy Solid, sell on Uniswap
         // Optimal x = (sqrt(997_000 * S * W * E * T) - E * T * 1000) / (T * 1000 + 997 * S)
         // Split sqrt to avoid overflow: sqrt(997_000 * S * E) * sqrt(W * T)
-        uint256 ethInA;
+        uint256 ethA;
         uint256 profitA;
         {
             uint256 sqrtSe = Math.sqrt(997_000 * S * E);
@@ -134,9 +134,9 @@ contract UniSolid is IAutomation {
             if (sqrtSe * sqrtWt > et1000) {
                 uint256 num = sqrtSe * sqrtWt - et1000;
                 uint256 den = T * 1000 + 997 * S;
-                ethInA = num / den;
-                if (ethInA > 0) {
-                    profitA = _profitSolidToUniswap(ethInA, S, E, T, W);
+                ethA = num / den;
+                if (ethA > 0) {
+                    profitA = _profitSolidToUniswap(ethA, S, E, T, W);
                 }
             }
         }
@@ -144,7 +144,7 @@ contract UniSolid is IAutomation {
         // Direction B: Uniswap cheap → buy on Uniswap, sell on Solid
         // Optimal x = (sqrt(997_000 * T * E * W * S) - W * S * 1000) / (S * 1000 + 997 * T)
         // Split sqrt: sqrt(997_000 * T * W) * sqrt(E * S)
-        uint256 ethInB;
+        uint256 ethB;
         uint256 profitB;
         {
             uint256 sqrtTw = Math.sqrt(997_000 * T * W);
@@ -153,26 +153,26 @@ contract UniSolid is IAutomation {
             if (sqrtTw * sqrtEs > ws1000) {
                 uint256 num = sqrtTw * sqrtEs - ws1000;
                 uint256 den = S * 1000 + 997 * T;
-                ethInB = num / den;
-                if (ethInB > 0) {
-                    profitB = _profitUniswapToSolid(ethInB, S, E, T, W);
+                ethB = num / den;
+                if (ethB > 0) {
+                    profitB = _profitUniswapToSolid(ethB, S, E, T, W);
                 }
             }
         }
 
         if (profitA > profitB) {
             dir = Direction.SolidToUniswap;
-            ethIn = ethInA;
+            eth = ethA;
             profit = profitA;
         } else if (profitB > 0) {
             dir = Direction.UniswapToSolid;
-            ethIn = ethInB;
+            eth = ethB;
             profit = profitB;
         } else {
             return (Direction.None, 0, 0);
         }
 
-        if (address(this).balance < ethIn) return (Direction.None, 0, 0);
+        if (address(this).balance < eth) return (Direction.None, 0, 0);
         if (profit < GAS_MARGIN * tx.gasprice) return (Direction.None, 0, 0);
     }
 
@@ -229,8 +229,8 @@ contract UniSolid is IAutomation {
     /**
      * @notice Execute: buy on Solid (ETH → tokens), sell on Uniswap (tokens → ETH)
      */
-    function _arbSolidToUniswap(uint256 ethIn) internal {
-        uint256 tokensOut = solid.buy{value: ethIn}();
+    function _arbSolidToUniswap(uint256 eth) internal {
+        uint256 tokensOut = solid.buy{value: eth}();
 
         IERC20(address(solid)).approve(address(ROUTER), tokensOut);
 
@@ -238,18 +238,18 @@ contract UniSolid is IAutomation {
         path[0] = address(solid);
         path[1] = WETH;
 
-        ROUTER.swapExactTokensForETH(tokensOut, ethIn, path, address(this), block.timestamp);
+        ROUTER.swapExactTokensForETH(tokensOut, eth, path, address(this), block.timestamp);
     }
 
     /**
      * @notice Execute: buy on Uniswap (ETH → tokens), sell on Solid (tokens → ETH)
      */
-    function _arbUniswapToSolid(uint256 ethIn) internal {
+    function _arbUniswapToSolid(uint256 eth) internal {
         address[] memory path = new address[](2);
         path[0] = WETH;
         path[1] = address(solid);
 
-        uint256[] memory amounts = ROUTER.swapExactETHForTokens{value: ethIn}(0, path, address(this), block.timestamp);
+        uint256[] memory amounts = ROUTER.swapExactETHForTokens{value: eth}(0, path, address(this), block.timestamp);
         uint256 tokensOut = amounts[1];
 
         solid.sell(tokensOut);

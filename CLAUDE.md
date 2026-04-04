@@ -30,7 +30,7 @@ Implements `IAutomation` from [iautomation](lib/iautomation/iautomation.sol).
 struct Params {
     ISolid solid;              // Solid token to arbitrage
     IUniswapV2Router router;   // Uniswap V2 router
-    uint256 ethIn;             // Trade size in ETH
+    uint256 eth;             // Trade size in ETH
     uint256 minProfit;         // Minimum profit threshold in ETH
 }
 ```
@@ -121,7 +121,7 @@ The contract must `approve` the router before calling `swapExactTokensForETH`.
 ## Events and Errors
 
 ```solidity
-event Arb(ISolid indexed solid, Direction direction, uint256 ethIn, uint256 profit);
+event Arb(ISolid indexed solid, Direction direction, uint256 eth, uint256 profit);
 
 error NotOwner();
 error NoProfitableArb();

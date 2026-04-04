@@ -26,7 +26,7 @@ the discrepancy and executes the arbitrage atomically.
 abi.encode(UniSolid.Params({
     solid: ISolid(solidAddress),
     router: IUniswapV2Router(routerAddress),
-    ethIn: 0.1 ether,
+    eth: 0.1 ether,
     minProfit: 0.001 ether
 }))
 ```
