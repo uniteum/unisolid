@@ -132,6 +132,29 @@ contract UniSolidTest is BaseTest {
         assertFalse(needed, "should not arb without balance");
     }
 
+    function test_ArbWithPartialBalance() public {
+        // Solid is cheap, Uniswap is expensive
+        vm.deal(address(router), 10 ether);
+        router.setPool(address(solid), 10 ether, 1_000_000 ether);
+
+        vm.deal(address(this), 1 ether);
+        uint256 tokens = solid.buy{value: 1 ether}();
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
+        solid.transfer(address(router), tokens);
+
+        // Fund arb with less than optimal trade size
+        vm.deal(address(arb), 0.01 ether);
+
+        (bool needed,) = arb.checkUpkeep("");
+
+        if (needed) {
+            uint256 balBefore = address(arb).balance;
+            arb.performUpkeep("");
+            uint256 balAfter = address(arb).balance;
+            assertGt(balAfter, balBefore, "should profit even with partial balance");
+        }
+    }
+
     function test_MinProfitThreshold() public {
         vm.deal(address(router), 10 ether);
         router.setPool(address(solid), 10 ether, 1_000_000 ether);
