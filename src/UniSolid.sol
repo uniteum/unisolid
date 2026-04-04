@@ -109,8 +109,11 @@ contract UniSolid is IAutomation {
         emit Arb(solid, dir, eth, profit);
     }
 
+    uint256 constant UNI_FEE_NUM = 997;
+    uint256 constant UNI_FEE_DEN = 1000;
+
     /**
-     * @notice Compute the optimal trade size and direction
+     * @notice Compute the optimal trade size and direction (see OPTIMAL.md)
      * @return dir The profitable direction (None if neither)
      * @return eth Optimal ETH trade size
      * @return profit Net ETH profit at optimal size
@@ -124,17 +127,17 @@ contract UniSolid is IAutomation {
         uint256 te = T * E;
         if (sw == te) return (Direction.None, 0, 0);
 
-        // Shared sqrt: sqrt(997_000 * S * E * W * T), split to avoid overflow
-        uint256 sqrtProduct = Math.sqrt(997_000 * S * E) * Math.sqrt(W * T);
+        // Fee-adjusted reserves (Uniswap 0.3% fee applied once here)
+        uint256 fS = S * UNI_FEE_NUM / UNI_FEE_DEN;
+        uint256 fT = T * UNI_FEE_NUM / UNI_FEE_DEN;
 
         uint256 balance = address(this).balance;
 
         if (sw > te) {
-            // Direction A: Solid cheap → buy Solid, sell on Uniswap
-            // Optimal x = (sqrtProduct - T*E*1000) / (T*1000 + 997*S)
-            uint256 cross = te * 1000;
-            if (sqrtProduct > cross) {
-                eth = (sqrtProduct - cross) / (T * 1000 + 997 * S);
+            // Direction A: Solid cheap → buy Solid, sell on Uniswap (see OPTIMAL.md)
+            uint256 root = Math.sqrt(W * fS) * Math.sqrt(E * T);
+            if (root > te) {
+                eth = (root - te) / (T + fS);
                 if (eth > balance) eth = balance;
                 if (eth > 0) {
                     profit = _profitSolidToUniswap(eth, S, E, T, W);
@@ -142,11 +145,10 @@ contract UniSolid is IAutomation {
                 }
             }
         } else {
-            // Direction B: Uniswap cheap → buy on Uniswap, sell on Solid
-            // Optimal x = (sqrtProduct - S*W*1000) / (S*1000 + 997*T)
-            uint256 cross = sw * 1000;
-            if (sqrtProduct > cross) {
-                eth = (sqrtProduct - cross) / (S * 1000 + 997 * T);
+            // Direction B: Uniswap cheap → buy on Uniswap, sell on Solid (see OPTIMAL.md)
+            uint256 root = Math.sqrt(E * fT) * Math.sqrt(W * S);
+            if (root > sw) {
+                eth = (root - sw) / (fS + fT);
                 if (eth > balance) eth = balance;
                 if (eth > 0) {
                     profit = _profitUniswapToSolid(eth, S, E, T, W);
@@ -159,39 +161,47 @@ contract UniSolid is IAutomation {
     }
 
     /**
-     * @notice Compute profit for Direction A: buy on Solid, sell on Uniswap
+     * @notice Compute profit for Direction A: buy on Solid (no fee), sell on Uniswap (fee)
      */
     function _profitSolidToUniswap(uint256 x, uint256 S, uint256 E, uint256 T, uint256 W)
         internal
         pure
         returns (uint256)
     {
-        // Tokens from Solid: S * x / (E + x)
-        uint256 tokens = (S * x) / (E + x);
+        uint256 tokens = _swap(x, E, S);
         if (tokens == 0) return 0;
-
-        // ETH from Uniswap (0.3% fee): W * 997 * tokens / (T * 1000 + 997 * tokens)
-        uint256 ethBack = (W * 997 * tokens) / (T * 1000 + 997 * tokens);
+        uint256 ethBack = _uniswapSwap(tokens, T, W);
         if (ethBack > x) return ethBack - x;
         return 0;
     }
 
     /**
-     * @notice Compute profit for Direction B: buy on Uniswap, sell on Solid
+     * @notice Compute profit for Direction B: buy on Uniswap (fee), sell on Solid (no fee)
      */
     function _profitUniswapToSolid(uint256 x, uint256 S, uint256 E, uint256 T, uint256 W)
         internal
         pure
         returns (uint256)
     {
-        // Tokens from Uniswap (0.3% fee): T * 997 * x / (W * 1000 + 997 * x)
-        uint256 tokens = (T * 997 * x) / (W * 1000 + 997 * x);
+        uint256 tokens = _uniswapSwap(x, W, T);
         if (tokens == 0) return 0;
-
-        // ETH from Solid: E * tokens / (S + tokens)
-        uint256 ethBack = (E * tokens) / (S + tokens);
+        uint256 ethBack = _swap(tokens, S, E);
         if (ethBack > x) return ethBack - x;
         return 0;
+    }
+
+    /**
+     * @notice Constant-product swap: out = rOut * amountIn / (rIn + amountIn)
+     */
+    function _swap(uint256 amountIn, uint256 rIn, uint256 rOut) internal pure returns (uint256) {
+        return rOut * amountIn / (rIn + amountIn);
+    }
+
+    /**
+     * @notice Uniswap V2 swap with 0.3% fee applied to input
+     */
+    function _uniswapSwap(uint256 amountIn, uint256 rIn, uint256 rOut) internal pure returns (uint256) {
+        return _swap(amountIn * UNI_FEE_NUM / UNI_FEE_DEN, rIn, rOut);
     }
 
     /**

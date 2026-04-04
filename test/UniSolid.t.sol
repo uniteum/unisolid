@@ -369,18 +369,17 @@ contract UniSolidTest is BaseTest {
         }
 
         // Cross-check: verify eth matches the closed-form formula independently
-        // Optimal x = (sqrt(997_000 * a * b) * sqrt(c * d) - cross) / den
-        // where for dirA: a=S, b=E, c=W, d=T, cross=E*T*1000, den=T*1000+997*S
-        //       for dirB: a=T, b=W, c=E, d=S, cross=S*W*1000, den=S*1000+997*T
+        // (see OPTIMAL.md for derivation)
+        // dirA: x* = (sqrt(997_000*S*E*W*T) - 1000*E*T) / (1000*T + 997*S)
+        // dirB: x* = (sqrt(997_000*S*E*W*T) - 1000*S*W) / (997*S + 997*T)
         uint256 expected;
+        uint256 sqrtProduct = Math.sqrt(997_000 * S * E) * Math.sqrt(W * T);
         if (dirA) {
-            uint256 sqrtProduct = Math.sqrt(997_000 * S * E) * Math.sqrt(W * T);
             uint256 cross = E * T * 1000;
             if (sqrtProduct > cross) expected = (sqrtProduct - cross) / (T * 1000 + 997 * S);
         } else {
-            uint256 sqrtProduct = Math.sqrt(997_000 * T * W) * Math.sqrt(E * S);
             uint256 cross = S * W * 1000;
-            if (sqrtProduct > cross) expected = (sqrtProduct - cross) / (S * 1000 + 997 * T);
+            if (sqrtProduct > cross) expected = (sqrtProduct - cross) / (997 * S + 997 * T);
         }
         assertEq(eth, expected, "eth should match closed-form optimal");
     }
