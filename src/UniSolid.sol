@@ -255,6 +255,37 @@ contract UniSolid is IAutomation {
         solid.sell(tokensOut);
     }
 
+    // ---- Liquidity ----
+
+    /**
+     * @notice Convert Solid tokens to Uniswap LP: sell half for ETH, add liquidity with the rest
+     * @param n Amount of Solid tokens to convert (contract must hold at least this many)
+     */
+    function solidToUniswap(uint256 n) external onlyOwner {
+        uint256 half = n / 2;
+
+        uint256 ethBefore = address(this).balance;
+        solid.sell(half);
+        uint256 ethReceived = address(this).balance - ethBefore;
+
+        uint256 remaining = n - half;
+        IERC20(address(solid)).approve(address(ROUTER), remaining);
+        ROUTER.addLiquidityETH{value: ethReceived}(address(solid), remaining, 0, 0, address(this), block.timestamp);
+    }
+
+    /**
+     * @notice Convert Uniswap LP to Solid tokens: remove liquidity, buy Solid with the ETH portion
+     * @param n Amount of LP tokens to convert (contract must hold at least this many)
+     */
+    function uniswapToSolid(uint256 n) external onlyOwner {
+        IERC20(pair).approve(address(ROUTER), n);
+
+        // forge-lint: disable-next-line(mixed-case-variable)
+        (, uint256 amountETH) = ROUTER.removeLiquidityETH(address(solid), n, 0, 0, address(this), block.timestamp);
+
+        solid.buy{value: amountETH}();
+    }
+
     // ---- Owner operations (not Bitsy) ----
 
     /**
