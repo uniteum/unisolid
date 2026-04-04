@@ -191,7 +191,7 @@ contract UniSolid is IAutomation {
     }
 
     /**
-     * @notice Constant-product swap: out = rOut * amountIn / (rIn + amountIn)
+     * @notice Constant-product swap
      */
     function _swap(uint256 e, uint256 E, uint256 S) internal pure returns (uint256) {
         return S * e / (E + e);
