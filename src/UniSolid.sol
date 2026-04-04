@@ -163,30 +163,30 @@ contract UniSolid is IAutomation {
     /**
      * @notice Compute profit for Direction A: buy on Solid (no fee), sell on Uniswap (fee)
      */
-    function _profitSolidToUniswap(uint256 x, uint256 S, uint256 E, uint256 T, uint256 W)
+    function _profitSolidToUniswap(uint256 e, uint256 S, uint256 E, uint256 T, uint256 W)
         internal
         pure
         returns (uint256)
     {
-        uint256 tokens = _swap(x, E, S);
+        uint256 tokens = _swap(e, E, S);
         if (tokens == 0) return 0;
-        uint256 ethBack = _uniswapSwap(tokens, T, W);
-        if (ethBack > x) return ethBack - x;
+        uint256 ethBack = _uniswap(tokens, T, W);
+        if (ethBack > e) return ethBack - e;
         return 0;
     }
 
     /**
      * @notice Compute profit for Direction B: buy on Uniswap (fee), sell on Solid (no fee)
      */
-    function _profitUniswapToSolid(uint256 x, uint256 S, uint256 E, uint256 T, uint256 W)
+    function _profitUniswapToSolid(uint256 e, uint256 S, uint256 E, uint256 T, uint256 W)
         internal
         pure
         returns (uint256)
     {
-        uint256 tokens = _uniswapSwap(x, W, T);
+        uint256 tokens = _uniswap(e, W, T);
         if (tokens == 0) return 0;
         uint256 ethBack = _swap(tokens, S, E);
-        if (ethBack > x) return ethBack - x;
+        if (ethBack > e) return ethBack - e;
         return 0;
     }
 
@@ -200,7 +200,7 @@ contract UniSolid is IAutomation {
     /**
      * @notice Uniswap V2 swap with 0.3% fee applied to input
      */
-    function _uniswapSwap(uint256 amountIn, uint256 rIn, uint256 rOut) internal pure returns (uint256) {
+    function _uniswap(uint256 amountIn, uint256 rIn, uint256 rOut) internal pure returns (uint256) {
         return _swap(amountIn * UNI_FEE_NUM / UNI_FEE_DEN, rIn, rOut);
     }
 
