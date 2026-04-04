@@ -147,7 +147,6 @@ contract UniSolid is IAutomation {
             }
         }
 
-        if (profit == 0) return (Direction.None, 0, 0);
         if (address(this).balance < eth) return (Direction.None, 0, 0);
         if (profit < GAS_MARGIN * tx.gasprice) return (Direction.None, 0, 0);
     }
