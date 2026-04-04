@@ -116,62 +116,38 @@ contract UniSolid is IAutomation {
      * @return profit Net ETH profit at optimal size
      */
     function _quote() internal view returns (Direction dir, uint256 eth, uint256 profit) {
-        // Solid reserves
         (uint256 S, uint256 E) = solid.pool();
-
-        // Uniswap reserves
         (uint256 T, uint256 W) = _uniswapReserves();
 
-        // Direction A: Solid cheap → buy Solid, sell on Uniswap
-        // Optimal x = (sqrt(997_000 * S * W * E * T) - E * T * 1000) / (T * 1000 + 997 * S)
-        // Split sqrt to avoid overflow: sqrt(997_000 * S * E) * sqrt(W * T)
-        uint256 ethA;
-        uint256 profitA;
-        {
-            uint256 sqrtSe = Math.sqrt(997_000 * S * E);
-            uint256 sqrtWt = Math.sqrt(W * T);
-            uint256 et1000 = E * T * 1000;
-            if (sqrtSe * sqrtWt > et1000) {
-                uint256 num = sqrtSe * sqrtWt - et1000;
-                uint256 den = T * 1000 + 997 * S;
-                ethA = num / den;
-                if (ethA > 0) {
-                    profitA = _profitSolidToUniswap(ethA, S, E, T, W);
-                }
-            }
-        }
+        // Compare price ratios to determine direction: S/E vs T/W → S*W vs T*E
+        uint256 sw = S * W;
+        uint256 te = T * E;
+        if (sw == te) return (Direction.None, 0, 0);
 
-        // Direction B: Uniswap cheap → buy on Uniswap, sell on Solid
-        // Optimal x = (sqrt(997_000 * T * E * W * S) - W * S * 1000) / (S * 1000 + 997 * T)
-        // Split sqrt: sqrt(997_000 * T * W) * sqrt(E * S)
-        uint256 ethB;
-        uint256 profitB;
-        {
-            uint256 sqrtTw = Math.sqrt(997_000 * T * W);
-            uint256 sqrtEs = Math.sqrt(E * S);
-            uint256 ws1000 = W * S * 1000;
-            if (sqrtTw * sqrtEs > ws1000) {
-                uint256 num = sqrtTw * sqrtEs - ws1000;
-                uint256 den = S * 1000 + 997 * T;
-                ethB = num / den;
-                if (ethB > 0) {
-                    profitB = _profitUniswapToSolid(ethB, S, E, T, W);
-                }
-            }
-        }
+        // Shared sqrt: sqrt(997_000 * S * E * W * T), split to avoid overflow
+        uint256 sqrtProduct = Math.sqrt(997_000 * S * E) * Math.sqrt(W * T);
 
-        if (profitA > profitB) {
-            dir = Direction.SolidToUniswap;
-            eth = ethA;
-            profit = profitA;
-        } else if (profitB > 0) {
-            dir = Direction.UniswapToSolid;
-            eth = ethB;
-            profit = profitB;
+        if (sw > te) {
+            // Direction A: Solid cheap → buy Solid, sell on Uniswap
+            // Optimal x = (sqrtProduct - T*E*1000) / (T*1000 + 997*S)
+            uint256 cross = te * 1000;
+            if (sqrtProduct > cross) {
+                eth = (sqrtProduct - cross) / (T * 1000 + 997 * S);
+                if (eth > 0) profit = _profitSolidToUniswap(eth, S, E, T, W);
+                dir = Direction.SolidToUniswap;
+            }
         } else {
-            return (Direction.None, 0, 0);
+            // Direction B: Uniswap cheap → buy on Uniswap, sell on Solid
+            // Optimal x = (sqrtProduct - S*W*1000) / (S*1000 + 997*T)
+            uint256 cross = sw * 1000;
+            if (sqrtProduct > cross) {
+                eth = (sqrtProduct - cross) / (S * 1000 + 997 * T);
+                if (eth > 0) profit = _profitUniswapToSolid(eth, S, E, T, W);
+                dir = Direction.UniswapToSolid;
+            }
         }
 
+        if (profit == 0) return (Direction.None, 0, 0);
         if (address(this).balance < eth) return (Direction.None, 0, 0);
         if (profit < GAS_MARGIN * tx.gasprice) return (Direction.None, 0, 0);
     }
