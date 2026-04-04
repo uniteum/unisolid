@@ -127,14 +127,19 @@ contract UniSolid is IAutomation {
         // Shared sqrt: sqrt(997_000 * S * E * W * T), split to avoid overflow
         uint256 sqrtProduct = Math.sqrt(997_000 * S * E) * Math.sqrt(W * T);
 
+        uint256 balance = address(this).balance;
+
         if (sw > te) {
             // Direction A: Solid cheap → buy Solid, sell on Uniswap
             // Optimal x = (sqrtProduct - T*E*1000) / (T*1000 + 997*S)
             uint256 cross = te * 1000;
             if (sqrtProduct > cross) {
                 eth = (sqrtProduct - cross) / (T * 1000 + 997 * S);
-                if (eth > 0) profit = _profitSolidToUniswap(eth, S, E, T, W);
-                dir = Direction.SolidToUniswap;
+                if (eth > balance) eth = balance;
+                if (eth > 0) {
+                    profit = _profitSolidToUniswap(eth, S, E, T, W);
+                    dir = Direction.SolidToUniswap;
+                }
             }
         } else {
             // Direction B: Uniswap cheap → buy on Uniswap, sell on Solid
@@ -142,12 +147,14 @@ contract UniSolid is IAutomation {
             uint256 cross = sw * 1000;
             if (sqrtProduct > cross) {
                 eth = (sqrtProduct - cross) / (S * 1000 + 997 * T);
-                if (eth > 0) profit = _profitUniswapToSolid(eth, S, E, T, W);
-                dir = Direction.UniswapToSolid;
+                if (eth > balance) eth = balance;
+                if (eth > 0) {
+                    profit = _profitUniswapToSolid(eth, S, E, T, W);
+                    dir = Direction.UniswapToSolid;
+                }
             }
         }
 
-        if (address(this).balance < eth) return (Direction.None, 0, 0);
         if (profit < GAS_MARGIN * tx.gasprice) return (Direction.None, 0, 0);
     }
 
