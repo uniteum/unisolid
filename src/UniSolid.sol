@@ -132,10 +132,10 @@ contract UniSolid is IAutomation {
         uint256 fT = T * UNI_FEE_NUM / UNI_FEE_DEN;
 
         uint256 balance = address(this).balance;
+        uint256 root = Math.sqrt(W * fS) * Math.sqrt(E * T);
 
         if (sw > te) {
             // Direction A: Solid cheap → buy Solid, sell on Uniswap (see OPTIMAL.md)
-            uint256 root = Math.sqrt(W * fS) * Math.sqrt(E * T);
             if (root > te) {
                 eth = (root - te) / (T + fS);
                 if (eth > balance) eth = balance;
@@ -146,7 +146,6 @@ contract UniSolid is IAutomation {
             }
         } else {
             // Direction B: Uniswap cheap → buy on Uniswap, sell on Solid (see OPTIMAL.md)
-            uint256 root = Math.sqrt(E * fT) * Math.sqrt(W * S);
             if (root > sw) {
                 eth = (root - sw) / (fS + fT);
                 if (eth > balance) eth = balance;
