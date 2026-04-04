@@ -280,58 +280,52 @@ contract UniSolidTest is BaseTest {
 
     // ---- Liquidity tests ----
 
-    function test_SolidToUniswap() public {
-        // Buy tokens on Solid so arb has some
-        vm.deal(address(arb), 5 ether);
-        vm.prank(address(arb));
-        uint256 tokens = solid.buy{value: 5 ether}();
-
-        // Set up Uniswap pool with matching reserves
+    function test_GiveLiquidity() public {
+        // Set up Uniswap pool
         (uint256 S, uint256 E) = solid.pool();
         vm.deal(address(router), E);
         router.setPool(address(solid), E, S);
 
-        // Execute solidToUniswap
+        // Fund arb with ETH
+        vm.deal(address(arb), 5 ether);
+
+        // Execute giveLiquidity
         uint256 lpBefore = router.lpBalanceOf(address(arb));
-        arb.solidToUniswap(tokens);
+        arb.giveLiquidity(4 ether);
         uint256 lpAfter = router.lpBalanceOf(address(arb));
 
         assertGt(lpAfter, lpBefore, "should receive LP tokens");
-        assertEq(IERC20(address(solid)).balanceOf(address(arb)), 0, "should use all solid tokens");
     }
 
-    function test_UniswapToSolid() public {
-        // Start with empty pool so all liquidity comes from solidToUniswap
+    function test_TakeLiquidity() public {
+        // Start with empty pool so all liquidity comes from giveLiquidity
         router.setPool(address(solid), 0, 0);
 
-        // Buy tokens and add liquidity
+        // Fund arb and add liquidity
         vm.deal(address(arb), 5 ether);
-        vm.prank(address(arb));
-        uint256 tokens = solid.buy{value: 5 ether}();
-
-        arb.solidToUniswap(tokens);
+        arb.giveLiquidity(4 ether);
         uint256 lp = router.lpBalanceOf(address(arb));
         assertGt(lp, 0, "should have LP tokens");
 
-        // Now convert back
-        uint256 solidBefore = IERC20(address(solid)).balanceOf(address(arb));
-        arb.uniswapToSolid(lp);
-        uint256 solidAfter = IERC20(address(solid)).balanceOf(address(arb));
+        // Now convert back — should end up with ETH, not Solid
+        uint256 ethBefore = address(arb).balance;
+        arb.takeLiquidity(lp);
+        uint256 ethAfter = address(arb).balance;
 
-        assertGt(solidAfter, solidBefore, "should receive solid tokens");
+        assertGt(ethAfter, ethBefore, "should receive ETH back");
         assertEq(router.lpBalanceOf(address(arb)), 0, "should burn all LP tokens");
     }
 
-    function test_OnlyOwnerSolidToUniswap() public {
+    function test_OnlyOwnerGiveLiquidity() public {
         vm.prank(address(0xdead));
         vm.expectRevert(UniSolid.Unauthorized.selector);
-        arb.solidToUniswap(1 ether);
+        arb.giveLiquidity(1 ether);
     }
 
-    function test_OnlyOwnerUniswapToSolid() public {
+    function test_OnlyOwnerTakeLiquidity() public {
         vm.prank(address(0xdead));
         vm.expectRevert(UniSolid.Unauthorized.selector);
-        arb.uniswapToSolid(1 ether);
+        arb.takeLiquidity(1 ether);
     }
 
     function _captureEthIn() internal view returns (uint256 eth) {

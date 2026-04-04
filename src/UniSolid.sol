@@ -249,28 +249,26 @@ contract UniSolid is IAutomation {
     // ---- Liquidity ----
 
     /**
-     * @notice Convert Solid tokens to Uniswap LP: sell half for ETH, add liquidity with the rest
-     * @param n Amount of Solid tokens to convert (contract must hold at least this many)
+     * @notice Add Uniswap LP using ETH: buy Solid with half, add liquidity with both halves
+     * @param eth Amount of ETH to use (contract must hold at least this much)
      */
-    function solidToUniswap(uint256 n) external onlyOwner {
-        uint256 half = n / 2;
-        uint256 ethReceived = solid.sell(half);
-        uint256 remaining = n - half;
-        IERC20(address(solid)).approve(address(ROUTER), remaining);
-        ROUTER.addLiquidityETH{value: ethReceived}(address(solid), remaining, 0, 0, address(this), block.timestamp);
+    function giveLiquidity(uint256 eth) external onlyOwner {
+        uint256 half = eth / 2;
+        uint256 tokens = solid.buy{value: half}();
+        IERC20(address(solid)).approve(address(ROUTER), tokens);
+        ROUTER.addLiquidityETH{value: eth - half}(address(solid), tokens, 0, 0, address(this), block.timestamp);
     }
 
     /**
-     * @notice Convert Uniswap LP to Solid tokens: remove liquidity, buy Solid with the ETH portion
+     * @notice Remove Uniswap LP and convert back to ETH: remove liquidity, sell Solid tokens
      * @param n Amount of LP tokens to convert (contract must hold at least this many)
      */
-    function uniswapToSolid(uint256 n) external onlyOwner {
+    function takeLiquidity(uint256 n) external onlyOwner {
         IERC20(pair).approve(address(ROUTER), n);
 
-        // forge-lint: disable-next-line(mixed-case-variable)
-        (, uint256 amountETH) = ROUTER.removeLiquidityETH(address(solid), n, 0, 0, address(this), block.timestamp);
+        (uint256 amountToken,) = ROUTER.removeLiquidityETH(address(solid), n, 0, 0, address(this), block.timestamp);
 
-        solid.buy{value: amountETH}();
+        solid.sell(amountToken);
     }
 
     // ---- Owner operations (not Bitsy) ----
