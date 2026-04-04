@@ -263,11 +263,7 @@ contract UniSolid is IAutomation {
      */
     function solidToUniswap(uint256 n) external onlyOwner {
         uint256 half = n / 2;
-
-        uint256 ethBefore = address(this).balance;
-        solid.sell(half);
-        uint256 ethReceived = address(this).balance - ethBefore;
-
+        uint256 ethReceived = solid.sell(half);
         uint256 remaining = n - half;
         IERC20(address(solid)).approve(address(ROUTER), remaining);
         ROUTER.addLiquidityETH{value: ethReceived}(address(solid), remaining, 0, 0, address(this), block.timestamp);
