@@ -220,7 +220,7 @@ contract UniSolidTest is BaseTest {
         ISolid solid2 = nothing2.make("No Pair", "NP");
 
         // No Uniswap pair exists yet
-        assertEq(proto.FACTORY().getPair(address(solid2), proto.WETH()), address(0));
+        assertEq(router.getPair(address(solid2), proto.WETH()), address(0));
 
         // make creates the pair
         UniSolid arb2 = proto.make(solid2);

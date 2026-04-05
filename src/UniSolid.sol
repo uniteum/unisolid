@@ -32,7 +32,6 @@ import {Ownable} from "ownable/Ownable.sol";
 contract UniSolid is IAutomation, Ownable {
     UniSolid public immutable PROTO = this;
     IUniswapV2Router01 public immutable ROUTER;
-    IUniswapV2Factory public immutable FACTORY;
     address public immutable WETH;
     IERC20 public immutable LINK;
     uint256 public immutable GAS_MARGIN;
@@ -72,7 +71,6 @@ contract UniSolid is IAutomation, Ownable {
         uint256 linkEth
     ) Ownable(address(this)) {
         ROUTER = IUniswapV2Router01(routerLookup.value());
-        FACTORY = IUniswapV2Factory(ROUTER.factory());
         WETH = ROUTER.WETH();
         address link = linkLookup.value();
         if (link == address(0)) revert NoLink();
@@ -423,8 +421,9 @@ contract UniSolid is IAutomation, Ownable {
      */
     function zzInit(address owner_, ISolid solid_) public {
         if (msg.sender != address(PROTO)) revert OwnableUnauthorizedAccount(msg.sender);
-        address pair_ = FACTORY.getPair(address(solid_), WETH);
-        if (pair_ == address(0)) pair_ = FACTORY.createPair(address(solid_), WETH);
+        IUniswapV2Factory f = IUniswapV2Factory(ROUTER.factory());
+        address pair_ = f.getPair(address(solid_), WETH);
+        if (pair_ == address(0)) pair_ = f.createPair(address(solid_), WETH);
         _transferOwnership(owner_);
         solid = solid_;
         pair = pair_;
