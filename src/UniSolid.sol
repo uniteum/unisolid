@@ -105,42 +105,55 @@ contract UniSolid is IAutomation {
      */
     function checkUpkeep(bytes calldata) external view override returns (bool upkeepNeeded, bytes memory performData) {
         (Direction dir,,) = _quote();
-        return (dir != Direction.None, "");
+        return (dir != Direction.None || _needsLink(), "");
     }
 
     /**
-     * @notice Execute the arbitrage
+     * @notice Execute the arbitrage and top off LINK if needed
      * @dev Computes direction and size from current on-chain state.
      *      Anyone can call this (per Chainlink Automation spec), but the
      *      on-chain profit check prevents griefing.
+     *      LINK top-off runs regardless of arb profitability, enabling
+     *      bootstrap by simply sending ETH to the contract.
      */
     function performUpkeep(bytes calldata) external override {
+        bool topped = _topOffLink();
+
         (Direction dir, uint256 eth, uint256 profit) = _quote();
         if (dir == Direction.None) {
-            revert NoProfitableArb();
-        } else if (dir == Direction.SolidToUniswap) {
+            if (!topped) revert NoProfitableArb();
+            return;
+        }
+
+        if (dir == Direction.SolidToUniswap) {
             _arbSolidToUniswap(eth);
         } else {
             _arbUniswapToSolid(eth);
         }
 
         emit Arb(solid, dir, eth, profit);
+    }
 
-        _topOffLink();
+    /**
+     * @notice Check whether LINK balance is below minimum and top-off is possible
+     */
+    function _needsLink() internal view returns (bool) {
+        return LINK.balanceOf(address(this)) < LINK_MIN && address(this).balance >= LINK_ETH;
     }
 
     /**
      * @notice Buy LINK from the router if balance is below minimum
+     * @return topped True if LINK was purchased
      */
-    function _topOffLink() internal {
-        if (LINK.balanceOf(address(this)) >= LINK_MIN) return;
-        if (address(this).balance < LINK_ETH) return;
+    function _topOffLink() internal returns (bool topped) {
+        if (!_needsLink()) return false;
 
         address[] memory path = new address[](2);
         path[0] = WETH;
         path[1] = address(LINK);
 
         ROUTER.swapExactETHForTokens{value: LINK_ETH}(0, path, address(this), block.timestamp);
+        return true;
     }
 
     uint256 constant UNI_FEE_NUM = 997;

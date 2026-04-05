@@ -514,20 +514,17 @@ contract UniSolidTest is BaseTest {
     }
 
     function test_LinkBootstrap() public {
-        // Deploy with LINK top-off enabled, no initial LINK balance
-        _setupArb();
+        // No arb set up — only LINK pool exists
         _setupLinkPool(10 ether, 10_000 ether);
 
         UniSolid linkProto = _linkProto(100 ether, 0.01 ether);
         UniSolid linkArb = linkProto.make(solid);
 
-        // Bootstrap: just send ETH, then performUpkeep should arb + acquire LINK
+        // Bootstrap: send ETH, no arb exists but performUpkeep succeeds and acquires LINK
         vm.deal(address(linkArb), 1 ether);
         assertEq(link.balanceOf(address(linkArb)), 0, "no LINK before bootstrap");
 
-        uint256 ethBefore = address(linkArb).balance;
         linkArb.performUpkeep("");
-        assertGt(address(linkArb).balance, ethBefore - 1 ether, "should still have ETH after arb");
         assertGt(link.balanceOf(address(linkArb)), 0, "should have LINK after bootstrap");
     }
 
