@@ -92,7 +92,9 @@ contract UniSolid is IAutomation {
         LINK_ETH = linkEth;
     }
 
-    receive() external payable {}
+    receive() external payable {
+        if (address(this) == address(PROTO)) revert();
+    }
 
     // ---- Automation ----
 
