@@ -10,6 +10,7 @@ import {IUniswapV2Pair} from "iuniswap/IUniswapV2Pair.sol";
 import {IAddressLookup} from "ilookup/IAddressLookup.sol";
 import {Clones} from "clones/Clones.sol";
 import {Math} from "math/Math.sol";
+import {Ownable} from "ownable/Ownable.sol";
 
 /**
  * @notice Arbitrage bot between Solid AMM and Uniswap V2.
@@ -28,7 +29,7 @@ import {Math} from "math/Math.sol";
  * The optimal trade size is computed via closed-form formula from both pools'
  * reserves, maximizing net ETH profit.
  */
-contract UniSolid is IAutomation {
+contract UniSolid is IAutomation, Ownable {
     UniSolid public immutable PROTO = this;
     IUniswapV2Router01 public immutable ROUTER;
     IUniswapV2Factory public immutable FACTORY;
@@ -38,7 +39,6 @@ contract UniSolid is IAutomation {
     uint256 public immutable LINK_MIN;
     uint256 public immutable LINK_ETH;
 
-    address public owner;
     ISolid public solid;
     address public pair;
 
@@ -54,18 +54,8 @@ contract UniSolid is IAutomation {
     event Make(UniSolid indexed clone, address indexed owner, ISolid indexed solid);
     event Arb(ISolid indexed solid, Direction direction, uint256 eth, uint256 profit);
 
-    error Unauthorized();
     error NoProfitableArb();
     error NoLink();
-
-    modifier onlyOwner() {
-        _onlyOwner();
-        _;
-    }
-
-    function _onlyOwner() internal view {
-        if (msg.sender != owner) revert Unauthorized();
-    }
 
     /**
      * @param routerLookup Lookup for Uniswap V2 router address
@@ -80,7 +70,7 @@ contract UniSolid is IAutomation {
         uint256 gasMargin,
         uint256 linkMin,
         uint256 linkEth
-    ) {
+    ) Ownable(msg.sender) {
         ROUTER = IUniswapV2Router01(routerLookup.value());
         FACTORY = IUniswapV2Factory(ROUTER.factory());
         WETH = ROUTER.WETH();
@@ -376,7 +366,7 @@ contract UniSolid is IAutomation {
      * @param amount Amount of ETH to withdraw
      */
     function withdraw(uint256 amount) external onlyOwner {
-        (bool ok,) = owner.call{value: amount}("");
+        (bool ok,) = owner().call{value: amount}("");
         require(ok);
     }
 
@@ -386,7 +376,7 @@ contract UniSolid is IAutomation {
      * @param amount Amount to recover
      */
     function recover(IERC20 token, uint256 amount) external onlyOwner {
-        require(token.transfer(owner, amount));
+        require(token.transfer(owner(), amount));
     }
 
     // ---- Factory (Bitsy) ----
@@ -432,10 +422,10 @@ contract UniSolid is IAutomation {
      * @param solid_ The Solid token
      */
     function zzInit(address owner_, ISolid solid_) public {
-        if (msg.sender != address(PROTO)) revert Unauthorized();
+        if (msg.sender != address(PROTO)) revert OwnableUnauthorizedAccount(msg.sender);
         address pair_ = FACTORY.getPair(address(solid_), WETH);
         if (pair_ == address(0)) pair_ = FACTORY.createPair(address(solid_), WETH);
-        owner = owner_;
+        _transferOwnership(owner_);
         solid = solid_;
         pair = pair_;
     }

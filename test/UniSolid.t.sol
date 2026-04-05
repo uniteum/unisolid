@@ -7,6 +7,7 @@ import {Solid} from "solid/Solid.sol";
 import {ISolid} from "isolid/ISolid.sol";
 import {IAddressLookup} from "ilookup/IAddressLookup.sol";
 import {IERC20} from "ierc20/IERC20.sol";
+import {Ownable} from "ownable/Ownable.sol";
 import {console} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {UnswapV2Router01Mock} from "./UnswapV2Router01Mock.sol";
@@ -231,7 +232,7 @@ contract UniSolidTest is BaseTest {
 
         // Non-owner cannot withdraw
         vm.prank(address(0xdead));
-        vm.expectRevert(UniSolid.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0xdead)));
         arb.withdraw(1 ether);
 
         // Owner can withdraw
@@ -242,7 +243,7 @@ contract UniSolidTest is BaseTest {
 
     function test_OnlyOwnerRecover() public {
         vm.prank(address(0xdead));
-        vm.expectRevert(UniSolid.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0xdead)));
         arb.recover(IERC20(address(solid)), 1 ether);
     }
 
@@ -280,12 +281,12 @@ contract UniSolidTest is BaseTest {
         assertEq(arb.owner(), address(this), "clone owner should be test contract");
     }
 
-    function test_ProtoHasNoOwner() public view {
-        assertEq(proto.owner(), address(0), "proto should have no owner");
+    function test_ProtoOwnerIsDeployer() public view {
+        assertEq(proto.owner(), address(this), "proto owner should be deployer");
     }
 
     function test_ZzInitOnlyCallableByProto() public {
-        vm.expectRevert(UniSolid.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
         arb.zzInit(address(this), solid);
     }
 
@@ -329,13 +330,13 @@ contract UniSolidTest is BaseTest {
 
     function test_OnlyOwnerGiveLiquidity() public {
         vm.prank(address(0xdead));
-        vm.expectRevert(UniSolid.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0xdead)));
         arb.giveLiquidity(1 ether);
     }
 
     function test_OnlyOwnerTakeLiquidity() public {
         vm.prank(address(0xdead));
-        vm.expectRevert(UniSolid.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(0xdead)));
         arb.takeLiquidity(1 ether);
     }
 
