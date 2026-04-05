@@ -281,8 +281,8 @@ contract UniSolidTest is BaseTest {
         assertEq(arb.owner(), address(this), "clone owner should be test contract");
     }
 
-    function test_ProtoOwnerIsDeployer() public view {
-        assertEq(proto.owner(), address(this), "proto owner should be deployer");
+    function test_ProtoOwnsItself() public view {
+        assertEq(proto.owner(), address(proto), "proto should own itself");
     }
 
     function test_ZzInitOnlyCallableByProto() public {

@@ -70,7 +70,7 @@ contract UniSolid is IAutomation, Ownable {
         uint256 gasMargin,
         uint256 linkMin,
         uint256 linkEth
-    ) Ownable(msg.sender) {
+    ) Ownable(address(this)) {
         ROUTER = IUniswapV2Router01(routerLookup.value());
         FACTORY = IUniswapV2Factory(ROUTER.factory());
         WETH = ROUTER.WETH();
