@@ -303,6 +303,57 @@ contract UniSolid is IAutomation {
         solid.sell(amountToken);
     }
 
+    // ---- Views ----
+
+    /**
+     * @notice ETH balance of this contract
+     */
+    function ethBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    /**
+     * @notice LINK balance of this contract
+     */
+    function linkBalance() external view returns (uint256) {
+        return LINK.balanceOf(address(this));
+    }
+
+    /**
+     * @notice LP token balance of this contract for the Solid/WETH pair
+     */
+    function lpBalance() external view returns (uint256) {
+        return IERC20(pair).balanceOf(address(this));
+    }
+
+    /**
+     * @notice Total supply of the Solid/WETH LP token
+     */
+    function lpTotal() external view returns (uint256) {
+        return IUniswapV2Pair(pair).totalSupply();
+    }
+
+    /**
+     * @notice Uniswap pair reserves ordered as (token, WETH)
+     */
+    function uniswapReserves() external view returns (uint256 tokenReserve, uint256 wethReserve) {
+        return _uniswapReserves();
+    }
+
+    /**
+     * @notice Solid pool reserves (tokenSupply, ethReserve with virtual 1 ETH)
+     */
+    function solidReserves() external view returns (uint256 tokenSupply, uint256 ethReserve) {
+        return solid.pool();
+    }
+
+    /**
+     * @notice Current best arbitrage direction, optimal trade size, and expected profit
+     */
+    function quote() external view returns (Direction dir, uint256 eth, uint256 profit) {
+        return _quote();
+    }
+
     // ---- Owner operations (not Bitsy) ----
 
     /**
