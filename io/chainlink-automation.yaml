@@ -1,134 +1,309 @@
 # Chainlink Automation — Supported Networks
 # Source: https://docs.chain.link/chainlink-automation/overview/supported-networks
 
-# Ethereum Mainnet
-1:
-  name: Ethereum Mainnet
-  registryAddress: "0x6593c7De001fC8542bB1703532EE1E5aA0D458fD"
-  registrarAddress: "0x6B0B234fB2f380309D47A7E9391E29E9a179395a"
-
-# Ethereum Sepolia
-11155111:
-  name: Ethereum Sepolia
-  registryAddress: "0x86EFBD0b6736Bed994962f9797049422A3A8E8Ad"
-  registrarAddress: "0xb0E49c5D0d05cbc241d68c05BC5BA1d1B7B72976"
-
-# BNB Chain Mainnet
-56:
-  name: BNB Chain Mainnet
-  registryAddress: "0xDc21E279934fF6721CaDfDD112DAfb3261f09A2C"
-  registrarAddress: "0xf671F60bCC964B309D22424886FF202807381B32"
-
-# BNB Chain Testnet
-97:
-  name: BNB Chain Testnet
-  registryAddress: "0x96bb60aAAec09A0FceB4527b81bbF3Cc0c171393"
-  registrarAddress: "0x0631ea498c2Cd8371B020b9eC03f5F779174562B"
-
-# Polygon Mainnet
-137:
-  name: Polygon Mainnet
-  registryAddress: "0x08a8eea76D2395807Ce7D1FC942382515469cCA1"
-  registrarAddress: "0x0Bc5EDC7219D272d9dEDd919CE2b4726129AC02B"
-
-# Polygon Amoy Testnet
-80002:
-  name: Polygon Amoy
-  registryAddress: "0x93C0e201f7B158F503a1265B6942088975f92ce7"
-  registrarAddress: "0x99083A4bb154B0a3EC7a0D1eb40370C892Db4225"
-
-# Avalanche Mainnet
-43114:
-  name: Avalanche Mainnet
-  registryAddress: "0x7f00a3Cd4590009C349192510D51F8e6312E08CB"
-  registrarAddress: "0x5Cb7B29e621810Ce9a04Bee137F8427935795d00"
-
-# Avalanche Fuji Testnet
-43113:
-  name: Avalanche Fuji
-  registryAddress: "0x819B58A646CDd8289275A87653a2aA4902b14fe6"
-  registrarAddress: "0xD23D3D1b81711D75E1012211f1b65Cc7dBB474e2"
-
-# Fantom Mainnet
-250:
-  name: Fantom Mainnet
-  registryAddress: "0x02777053d6764996e594c3E88AF1D58D5363a2e6"
-  registrarAddress: "0xDb8e8e2ccb5C033938736aa89Fe4fa1eDfD15a1d"
-
-# Fantom Testnet
-4002:
-  name: Fantom Testnet
-  registryAddress: "0x8Ef7AC62dc3a4FF4dcc0441ed098106f8F313220"
-  registrarAddress: "0x31e5822E83039e0C7645Df38EE74F2444131875a"
-
 # Arbitrum One
 42161:
   name: Arbitrum One
   registryAddress: "0x37D9dC70bfcd8BC77Ec2858836B923c560E891D1"
   registrarAddress: "0x86EFBD0b6736Bed994962f9797049422A3A8E8Ad"
+  paymentPremiumPercent: 50
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 2000
+  gasCeilingMultiplier: 5
+  minUpkeepSpendLINK: 0.1
 
 # Arbitrum Sepolia
 421614:
   name: Arbitrum Sepolia
   registryAddress: "0x8194399B3f11fcA2E8cCEfc4c9A658c61B8Bf412"
   registrarAddress: "0x881918E24290084409DaA91979A30e6f0dB52eBe"
+  paymentPremiumPercent: 50
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 2000
+  gasCeilingMultiplier: 5
+  minUpkeepSpendLINK: 0.1
 
-# Optimism Mainnet
-10:
-  name: Optimism Mainnet
-  registryAddress: "0x696fB0d7D069cc0bb35a7c36115CE63E55cb9AA6"
-  registrarAddress: "0xe601C5837307f07aB39DEB0f5516602f045BF14f"
+# Avalanche Mainnet
+43114:
+  name: Avalanche Mainnet
+  registryAddress: "0x7f00a3Cd4590009C349192510D51F8e6312E08CB"
+  registrarAddress: "0x5Cb7B29e621810Ce9a04Bee137F8427935795d00"
+  paymentPremiumPercent: 40
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 2
+  minUpkeepSpendLINK: 0.1
 
-# Optimism Sepolia
-11155420:
-  name: Optimism Sepolia
-  registryAddress: "0x881918E24290084409DaA91979A30e6f0dB52eBe"
-  registrarAddress: "0x110Bd89F0B62EA1598FfeBF8C0304c9e58510Ee5"
+# Avalanche Fuji Testnet
+43113:
+  name: Avalanche Fuji
+  registryAddress: "0x819B58A646CDd8289275A87653a2aA4902b14fe6"
+  registrarAddress: "0xD23D3D1b81711D75E1012211f1b65Cc7dBB474e2"
+  paymentPremiumPercent: 40
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 2
+  minUpkeepSpendLINK: 0.0
 
 # Base Mainnet
 8453:
   name: Base Mainnet
   registryAddress: "0xf4bAb6A129164aBa9B113cB96BA4266dF49f8743"
   registrarAddress: "0xE28Adc50c7551CFf69FCF32D45d037e5F6554264"
+  paymentPremiumPercent: 50
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 2000
+  gasCeilingMultiplier: 5
+  minUpkeepSpendLINK: 0.1
 
-# Base Sepolia
+# Base Sepolia Testnet
 84532:
   name: Base Sepolia
   registryAddress: "0x91D4a4C3D448c7f3CB477332B1c7D420a5810aC3"
   registrarAddress: "0xf28D56F3A707E25B71Ce529a21AF388751E1CF2A"
+  paymentPremiumPercent: 50
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 1000
+  gasCeilingMultiplier: 2
+  minUpkeepSpendLINK: 0.1
+
+# BNB Chain Mainnet
+56:
+  name: BNB Chain Mainnet
+  registryAddress: "0xDc21E279934fF6721CaDfDD112DAfb3261f09A2C"
+  registrarAddress: "0xf671F60bCC964B309D22424886FF202807381B32"
+  paymentPremiumPercent: 30
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 3
+  minUpkeepSpendLINK: 0.1
+
+# BNB Chain Testnet
+97:
+  name: BNB Chain Testnet
+  registryAddress: "0x96bb60aAAec09A0FceB4527b81bbF3Cc0c171393"
+  registrarAddress: "0x0631ea498c2Cd8371B020b9eC03f5F779174562B"
+  paymentPremiumPercent: 30
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 3
+  minUpkeepSpendLINK: 0.0
+
+# Ethereum Mainnet
+1:
+  name: Ethereum Mainnet
+  registryAddress: "0x6593c7De001fC8542bB1703532EE1E5aA0D458fD"
+  registrarAddress: "0x6B0B234fB2f380309D47A7E9391E29E9a179395a"
+  paymentPremiumPercent: 20
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 2000
+  gasCeilingMultiplier: 2
+  minUpkeepSpendLINK: 0.1
+
+# Ethereum Sepolia Testnet
+11155111:
+  name: Ethereum Sepolia
+  registryAddress: "0x86EFBD0b6736Bed994962f9797049422A3A8E8Ad"
+  registrarAddress: "0xb0E49c5D0d05cbc241d68c05BC5BA1d1B7B72976"
+  paymentPremiumPercent: 20
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 2000
+  gasCeilingMultiplier: 3
+  minUpkeepSpendLINK: 0.0
 
 # Gnosis Mainnet
 100:
   name: Gnosis Mainnet
   registryAddress: "0x299c92a219F61a82E91d2062A262f7157F155AC1"
   registrarAddress: "0x0F7E163446AAb41DB5375AbdeE2c3eCC56D9aA32"
+  paymentPremiumPercent: 100
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 3
+  minUpkeepSpendLINK: 0.1
 
 # Gnosis Chiado Testnet
 10200:
   name: Gnosis Chiado
   registryAddress: "0x2CA3BC9eC81E9647e7f8e7EdFE630a27A4E470dB"
   registrarAddress: "0xcfB98e8E3AB99217a0E61C29f86ba3a4B79037BF"
+  paymentPremiumPercent: 30
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 3
+  minUpkeepSpendLINK: 0.1
 
-# Scroll Mainnet
-534352:
-  name: Scroll Mainnet
-  registryAddress: "0xBe55E7eb27Cd69Be0883E0284632A91bB7AdC272"
-  registrarAddress: "0x80C55e674a34FfE730B0357E16e8852B19573f7C"
+# OP Mainnet
+10:
+  name: OP Mainnet
+  registryAddress: "0x4F70c323b8B72AeffAF633Aa4D5e8B6Be5df4AEf"
+  registrarAddress: "0xe96057F85510292231e2C759752f012C87A8c8dd"
+  paymentPremiumPercent: 50
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 5
 
-# Scroll Sepolia
-534351:
-  name: Scroll Sepolia
+# OP Sepolia Testnet
+11155420:
+  name: OP Sepolia
+  registryAddress: "0x8E82eE417f916Bd44E8Efa144222808E5Fa84611"
+  registrarAddress: "0x9e329384F4155a5c284FF91CeD9f2AEF589C81c9"
+  paymentPremiumPercent: 50
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 5
+  minUpkeepSpendLINK: 0.1
+
+# Polygon Mainnet
+137:
+  name: Polygon Mainnet
+  registryAddress: "0x08a8eea76D2395807Ce7D1FC942382515469cCA1"
+  registrarAddress: "0x0Bc5EDC7219D272d9dEDd919CE2b4726129AC02B"
+  paymentPremiumPercent: 70
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 3
+  minUpkeepSpendLINK: 0.1
+
+# Polygon Amoy Testnet
+80002:
+  name: Polygon Amoy
   registryAddress: "0x93C0e201f7B158F503a1265B6942088975f92ce7"
-  registrarAddress: "0x8ee44ab698169a0AcA2571834b19a02d09D818d5"
+  registrarAddress: "0x99083A4bb154B0a3EC7a0D1eb40370C892Db4225"
+  paymentPremiumPercent: 30
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 3
+  minUpkeepSpendLINK: 0.1
 
 # Polygon zkEVM Mainnet
 1101:
   name: Polygon zkEVM Mainnet
   registryAddress: "0x0F7E163446AAb41DB5375AbdeE2c3eCC56D9aA32"
   registrarAddress: "0x703C1d261a996755409c74d00871e7D6Af4d9896"
+  paymentPremiumPercent: 56
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 2
+  minUpkeepSpendLINK: 0.0004
 
 # Polygon zkEVM Cardona Testnet
 2442:
   name: Polygon zkEVM Cardona
   registryAddress: "0x0F7E163446AAb41DB5375AbdeE2c3eCC56D9aA32"
   registrarAddress: "0x703C1d261a996755409c74d00871e7D6Af4d9896"
+  paymentPremiumPercent: 50
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 2
+  minUpkeepSpendLINK: 0.0004
+
+# Scroll Mainnet
+534352:
+  name: Scroll Mainnet
+  registryAddress: "0xBe55E7eb27Cd69Be0883E0284632A91bB7AdC272"
+  registrarAddress: "0x80C55e674a34FfE730B0357E16e8852B19573f7C"
+  paymentPremiumPercent: 56
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 2
+  minUpkeepSpendLINK: 0.0004
+
+# Scroll Sepolia Testnet
+534351:
+  name: Scroll Sepolia
+  registryAddress: "0x93C0e201f7B158F503a1265B6942088975f92ce7"
+  registrarAddress: "0x8ee44ab698169a0AcA2571834b19a02d09D818d5"
+  paymentPremiumPercent: 50
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 2
+  minUpkeepSpendLINK: 0.1
+
+# ZkSync Mainnet
+324:
+  name: ZkSync Mainnet
+  registryAddress: "0x8D405a2252fe4bd50dF29835e621986E59A81D74"
+  registrarAddress: "0x7415C4E9758F3cA26F1a4a8F11d885eadEF68939"
+  paymentPremiumPercent: 50
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 2
+  minUpkeepSpendLINK: 0.0004
+
+# ZkSync Sepolia Testnet
+300:
+  name: ZkSync Sepolia
+  registryAddress: "0xc740003833d487c49881Cd19A21B8c58313e0cF4"
+  registrarAddress: "0xC23751714a66B9824Fa6724A7B08635D480e88cD"
+  paymentPremiumPercent: 30
+  blockCountPerTurn: null
+  maxCheckDataSize: 5000
+  checkGasLimit: 10000000
+  performGasLimit: 5000000
+  maxPerformDataSize: 5000
+  gasCeilingMultiplier: 2
+  minUpkeepSpendLINK: 0.0004
