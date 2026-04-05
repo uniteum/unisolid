@@ -306,11 +306,6 @@ contract UniSolid is IAutomation {
     // ---- Owner operations (not Bitsy) ----
 
     /**
-     * @notice Deposit ETH into the contract for arbitrage capital
-     */
-    function deposit() external payable onlyOwner {}
-
-    /**
      * @notice Withdraw ETH from the contract
      * @param amount Amount of ETH to withdraw
      */
