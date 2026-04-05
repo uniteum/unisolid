@@ -10,4 +10,6 @@ reentrancy/=lib/reentrancy/
 ilookup/=lib/ilookup/
 math/=lib/math/
 panic/=lib/panic/
+context/=lib/context/
+ownable/=lib/ownable/
 solid/=lib/solid/src/

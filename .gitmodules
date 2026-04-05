@@ -37,3 +37,9 @@
 [submodule "lib/panic"]
 	path = lib/panic
 	url = https://github.com/uniteum/panic.git
+[submodule "lib/context"]
+	path = lib/context
+	url = https://github.com/uniteum/context.git
+[submodule "lib/ownable"]
+	path = lib/ownable
+	url = https://github.com/uniteum/ownable.git
