@@ -52,9 +52,9 @@ contract UniSolid is IAutomation, Ownable {
     }
 
     event Make(UniSolid indexed clone, address indexed owner, ISolid indexed solid);
-    event Arb(ISolid indexed solid, Direction direction, uint256 eth, uint256 profit);
+    event Swap(ISolid indexed solid, Direction direction, uint256 eth, uint256 profit);
 
-    error NoProfitableArb();
+    error NoProfitableSwap();
 
     /**
      * @param routerLookup Lookup for Uniswap V2 router address
@@ -109,7 +109,7 @@ contract UniSolid is IAutomation, Ownable {
 
         (Direction dir, uint256 eth, uint256 profit) = _quote();
         if (dir == Direction.None) {
-            if (!topped) revert NoProfitableArb();
+            if (!topped) revert NoProfitableSwap();
             return;
         }
 
@@ -119,7 +119,7 @@ contract UniSolid is IAutomation, Ownable {
             _arbUniswapToSolid(eth);
         }
 
-        emit Arb(solid, dir, eth, profit);
+        emit Swap(solid, dir, eth, profit);
     }
 
     /**

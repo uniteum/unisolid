@@ -346,12 +346,12 @@ contract UniSolidTest is BaseTest {
     function _captureEthIn() internal view returns (uint256 eth) {
         Vm.Log[] memory logs = vm.getRecordedLogs();
         for (uint256 i = 0; i < logs.length; i++) {
-            if (logs[i].topics[0] == UniSolid.Arb.selector) {
+            if (logs[i].topics[0] == UniSolid.Swap.selector) {
                 (, eth,) = abi.decode(logs[i].data, (uint8, uint256, uint256));
                 return eth;
             }
         }
-        revert("Arb event not found");
+        revert("Swap event not found");
     }
 
     function _assertOptimal(uint256 eth, uint256 optProfit, uint256 S, uint256 E, uint256 T, uint256 W, bool dirA)
