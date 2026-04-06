@@ -3,6 +3,7 @@ pragma solidity ^0.8.30;
 
 import {IAutomation} from "iautomation/iautomation.sol";
 import {IAutomationRegistrar} from "iautomation/IAutomationRegistrar.sol";
+import {IAutomationRegistry} from "iautomation/IAutomationRegistry.sol";
 import {ISolid} from "isolid/ISolid.sol";
 import {IERC20} from "ierc20/IERC20.sol";
 import {IUniswapV2Router01} from "iuniswap/IUniswapV2Router01.sol";
@@ -41,6 +42,7 @@ contract UniSolid is IAutomation, Ownable {
 
     ISolid public solid;
     address public pair;
+    uint256 public upkeepId;
 
     /**
      * @notice Direction of the arbitrage
@@ -361,6 +363,43 @@ contract UniSolid is IAutomation, Ownable {
      */
     function quote() external view returns (Direction dir, uint256 eth, uint256 profit) {
         return _quote();
+    }
+
+    // ---- Keeper registration ----
+
+    /**
+     * @notice Register a Chainlink Automation upkeep for this clone
+     * @param gasLimit Gas limit for performUpkeep execution
+     * @param amount LINK to fund the upkeep (must be held by this contract)
+     */
+    function register(uint32 gasLimit, uint96 amount) external onlyOwner {
+        IERC20 link = LINK();
+        link.approve(address(REGISTRAR), amount);
+
+        upkeepId = REGISTRAR.registerUpkeep(
+            IAutomationRegistrar.RegistrationParams({
+                name: "",
+                encryptedEmail: "",
+                upkeepContract: address(this),
+                gasLimit: gasLimit,
+                adminAddress: address(this),
+                triggerType: 0,
+                checkData: "",
+                triggerConfig: "",
+                offchainConfig: "",
+                amount: amount
+            })
+        );
+    }
+
+    /**
+     * @notice Cancel the upkeep and withdraw remaining LINK
+     */
+    function unregister() external onlyOwner {
+        (address registry,) = REGISTRAR.getConfig();
+        IAutomationRegistry(registry).cancelUpkeep(upkeepId);
+        IAutomationRegistry(registry).withdrawFunds(upkeepId, address(this));
+        upkeepId = 0;
     }
 
     // ---- Owner operations (not Bitsy) ----
