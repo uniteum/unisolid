@@ -408,7 +408,7 @@ contract UniSolidTest is BaseTest {
         // Read pre-trade reserves
         (uint256 S, uint256 E) = solid.pool();
         uint256 T = router.reserveToken();
-        uint256 W = router.reserveETH();
+        uint256 W = router.reserveEth();
 
         // Execute and capture eth
         vm.recordLogs();
@@ -440,7 +440,7 @@ contract UniSolidTest is BaseTest {
         // Read pre-trade reserves
         (uint256 S, uint256 E) = solid.pool();
         uint256 T = router.reserveToken();
-        uint256 W = router.reserveETH();
+        uint256 W = router.reserveEth();
 
         // Execute and capture eth
         vm.recordLogs();
@@ -484,7 +484,7 @@ contract UniSolidTest is BaseTest {
         vm.deal(address(router), address(router).balance + ethReserve);
         router.setPool(address(link), ethReserve, tokenReserve);
         // Restore primary token for pair interface
-        router.setPool(address(solid), router.poolETH(address(solid)), router.poolToken(address(solid)));
+        router.setPool(address(solid), router.poolEth(address(solid)), router.poolToken(address(solid)));
     }
 
     function test_LinkTopOff() public {

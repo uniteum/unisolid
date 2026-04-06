@@ -14,7 +14,7 @@ contract UnswapV2Router01Mock {
     address public immutable weth;
     address public token;
 
-    mapping(address => uint256) public poolETH;
+    mapping(address => uint256) public poolEth;
     mapping(address => uint256) public poolToken;
 
     uint256 public lpSupply;
@@ -33,9 +33,8 @@ contract UnswapV2Router01Mock {
     /**
      * @notice Primary pool reserves (backward compat)
      */
-    // forge-lint: disable-next-line(mixed-case-function)
-    function reserveETH() external view returns (uint256) {
-        return poolETH[token];
+    function reserveEth() external view returns (uint256) {
+        return poolEth[token];
     }
 
     function reserveToken() external view returns (uint256) {
@@ -68,10 +67,10 @@ contract UnswapV2Router01Mock {
             // forge-lint: disable-next-line(unsafe-typecast)
             reserve0 = uint112(poolToken[token]);
             // forge-lint: disable-next-line(unsafe-typecast)
-            reserve1 = uint112(poolETH[token]);
+            reserve1 = uint112(poolEth[token]);
         } else {
             // forge-lint: disable-next-line(unsafe-typecast)
-            reserve0 = uint112(poolETH[token]);
+            reserve0 = uint112(poolEth[token]);
             // forge-lint: disable-next-line(unsafe-typecast)
             reserve1 = uint112(poolToken[token]);
         }
@@ -88,7 +87,7 @@ contract UnswapV2Router01Mock {
      */
     function setPool(address token_, uint256 ethReserve, uint256 tokenReserve) external payable {
         token = token_;
-        poolETH[token_] = ethReserve;
+        poolEth[token_] = ethReserve;
         poolToken[token_] = tokenReserve;
     }
 
@@ -98,9 +97,9 @@ contract UnswapV2Router01Mock {
 
         address t = path[0] == weth ? path[1] : path[0];
         if (path[0] == weth) {
-            amounts[1] = _getAmountOut(amountIn, poolETH[t], poolToken[t]);
+            amounts[1] = _getAmountOut(amountIn, poolEth[t], poolToken[t]);
         } else {
-            amounts[1] = _getAmountOut(amountIn, poolToken[t], poolETH[t]);
+            amounts[1] = _getAmountOut(amountIn, poolToken[t], poolEth[t]);
         }
     }
 
@@ -113,9 +112,9 @@ contract UnswapV2Router01Mock {
         address t = path[1];
         amounts = new uint256[](2);
         amounts[0] = msg.value;
-        amounts[1] = _getAmountOut(msg.value, poolETH[t], poolToken[t]);
+        amounts[1] = _getAmountOut(msg.value, poolEth[t], poolToken[t]);
 
-        poolETH[t] += msg.value;
+        poolEth[t] += msg.value;
         poolToken[t] -= amounts[1];
 
         // forge-lint: disable-next-line(erc20-unchecked-transfer)
@@ -130,12 +129,12 @@ contract UnswapV2Router01Mock {
         address t = path[0];
         amounts = new uint256[](2);
         amounts[0] = amountIn;
-        amounts[1] = _getAmountOut(amountIn, poolToken[t], poolETH[t]);
+        amounts[1] = _getAmountOut(amountIn, poolToken[t], poolEth[t]);
 
         // forge-lint: disable-next-line(erc20-unchecked-transfer)
         IERC20(t).transferFrom(msg.sender, address(this), amountIn);
         poolToken[t] += amountIn;
-        poolETH[t] -= amounts[1];
+        poolEth[t] -= amounts[1];
 
         (bool ok,) = to.call{value: amounts[1]}("");
         require(ok);
@@ -158,7 +157,7 @@ contract UnswapV2Router01Mock {
 
         // forge-lint: disable-next-line(erc20-unchecked-transfer)
         IERC20(token_).transferFrom(msg.sender, address(this), amountToken);
-        poolETH[token_] += amountETH;
+        poolEth[token_] += amountETH;
         poolToken[token_] += amountToken;
         lpSupply += liquidity;
         lpBalanceOf[to] += liquidity;
@@ -173,13 +172,13 @@ contract UnswapV2Router01Mock {
             uint256 amountETH
         )
     {
-        amountETH = (liquidity_ * poolETH[token_]) / lpSupply;
+        amountETH = (liquidity_ * poolEth[token_]) / lpSupply;
         amountToken = (liquidity_ * poolToken[token_]) / lpSupply;
 
         lpAllowance[msg.sender][address(this)] -= liquidity_;
         lpBalanceOf[msg.sender] -= liquidity_;
         lpSupply -= liquidity_;
-        poolETH[token_] -= amountETH;
+        poolEth[token_] -= amountETH;
         poolToken[token_] -= amountToken;
 
         // forge-lint: disable-next-line(erc20-unchecked-transfer)
