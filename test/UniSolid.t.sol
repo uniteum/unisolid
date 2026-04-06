@@ -13,10 +13,13 @@ import {Vm} from "forge-std/Vm.sol";
 import {UnswapV2Router01Mock} from "./UnswapV2Router01Mock.sol";
 import {AddressLookupMock} from "./AddressLookupMock.sol";
 import {ERC20Mock} from "./ERC20Mock.sol";
+import {RegistrarMock} from "./RegistrarMock.sol";
 import {Math} from "math/Math.sol";
 
 contract ProfitHarness is UniSolid {
-    constructor(IAddressLookup routerLookup, IAddressLookup linkLookup) UniSolid(routerLookup, linkLookup, 0, 0, 0) {}
+    constructor(IAddressLookup routerLookup, IAddressLookup registrarLookup)
+        UniSolid(routerLookup, registrarLookup, 0, 0, 0)
+    {}
 
     function profitA(uint256 x, uint256 S, uint256 E, uint256 T, uint256 W) external pure returns (uint256) {
         return _profitSolidToUniswap(x, S, E, T, W);
@@ -49,10 +52,10 @@ contract UniSolidTest is BaseTest {
         link = new ERC20Mock();
 
         AddressLookupMock lookup = new AddressLookupMock(address(router));
-        AddressLookupMock linkLookup = new AddressLookupMock(address(link));
-        proto = new UniSolid(IAddressLookup(address(lookup)), IAddressLookup(address(linkLookup)), 0, 0, 0);
+        AddressLookupMock registrarLookup = new AddressLookupMock(address(new RegistrarMock(address(link))));
+        proto = new UniSolid(IAddressLookup(address(lookup)), IAddressLookup(address(registrarLookup)), 0, 0, 0);
         arb = proto.make(solid);
-        harness = new ProfitHarness(IAddressLookup(address(lookup)), IAddressLookup(address(linkLookup)));
+        harness = new ProfitHarness(IAddressLookup(address(lookup)), IAddressLookup(address(registrarLookup)));
     }
 
     function test_NoArbWhenPricesEqual() public {
@@ -174,7 +177,7 @@ contract UniSolidTest is BaseTest {
         // Deploy a proto with impossibly high threshold
         UniSolid highProto = new UniSolid(
             IAddressLookup(address(new AddressLookupMock(address(router)))),
-            IAddressLookup(address(new AddressLookupMock(address(link)))),
+            IAddressLookup(address(new AddressLookupMock(address(new RegistrarMock(address(link)))))),
             10_000_000,
             0,
             0
@@ -458,7 +461,7 @@ contract UniSolidTest is BaseTest {
     function _linkProto(uint256 linkMin, uint256 linkEth) internal returns (UniSolid) {
         return new UniSolid(
             IAddressLookup(address(new AddressLookupMock(address(router)))),
-            IAddressLookup(address(new AddressLookupMock(address(link)))),
+            IAddressLookup(address(new AddressLookupMock(address(new RegistrarMock(address(link)))))),
             0,
             linkMin,
             linkEth
@@ -527,13 +530,6 @@ contract UniSolidTest is BaseTest {
 
         linkArb.performUpkeep("");
         assertGt(link.balanceOf(address(linkArb)), 0, "should have LINK after bootstrap");
-    }
-
-    function test_ConstructorRevertsIfNoLink() public {
-        AddressLookupMock routerLookup_ = new AddressLookupMock(address(router));
-        AddressLookupMock zeroLookup = new AddressLookupMock(address(0));
-        vm.expectRevert(UniSolid.NoLink.selector);
-        new UniSolid(IAddressLookup(address(routerLookup_)), IAddressLookup(address(zeroLookup)), 0, 0, 0);
     }
 
     receive() external payable {}

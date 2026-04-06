@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {IAutomation} from "iautomation/iautomation.sol";
+import {IAutomationRegistrar} from "iautomation/IAutomationRegistrar.sol";
 import {ISolid} from "isolid/ISolid.sol";
 import {IERC20} from "ierc20/IERC20.sol";
 import {IUniswapV2Router01} from "iuniswap/IUniswapV2Router01.sol";
@@ -33,7 +34,7 @@ contract UniSolid is IAutomation, Ownable {
     UniSolid public immutable PROTO = this;
     IUniswapV2Router01 public immutable ROUTER;
     address public immutable WETH;
-    IERC20 public immutable LINK;
+    IAutomationRegistrar public immutable REGISTRAR;
     uint256 public immutable GAS_MARGIN;
     uint256 public immutable LINK_MIN;
     uint256 public immutable LINK_ETH;
@@ -54,27 +55,24 @@ contract UniSolid is IAutomation, Ownable {
     event Arb(ISolid indexed solid, Direction direction, uint256 eth, uint256 profit);
 
     error NoProfitableArb();
-    error NoLink();
 
     /**
      * @param routerLookup Lookup for Uniswap V2 router address
-     * @param linkLookup Lookup for chain-local LINK token address
+     * @param registrarLookup Lookup for chain-local Chainlink Automation registrar address
      * @param gasMargin Gas estimate × margin multiplier (e.g. 300_000 × 1.5 = 450_000)
      * @param linkMin Minimum LINK balance before top-off triggers
      * @param linkEth Amount of ETH to spend topping off LINK
      */
     constructor(
         IAddressLookup routerLookup,
-        IAddressLookup linkLookup,
+        IAddressLookup registrarLookup,
         uint256 gasMargin,
         uint256 linkMin,
         uint256 linkEth
     ) Ownable(address(this)) {
         ROUTER = IUniswapV2Router01(routerLookup.value());
         WETH = ROUTER.WETH();
-        address link = linkLookup.value();
-        if (link == address(0)) revert NoLink();
-        LINK = IERC20(link);
+        REGISTRAR = IAutomationRegistrar(registrarLookup.value());
         GAS_MARGIN = gasMargin;
         LINK_MIN = linkMin;
         LINK_ETH = linkEth;
@@ -128,7 +126,7 @@ contract UniSolid is IAutomation, Ownable {
      * @notice Check whether LINK balance is below minimum and top-off is possible
      */
     function _needsLink() internal view returns (bool) {
-        return LINK.balanceOf(address(this)) < LINK_MIN && address(this).balance >= LINK_ETH;
+        return LINK().balanceOf(address(this)) < LINK_MIN && address(this).balance >= LINK_ETH;
     }
 
     /**
@@ -140,7 +138,7 @@ contract UniSolid is IAutomation, Ownable {
 
         address[] memory path = new address[](2);
         path[0] = WETH;
-        path[1] = address(LINK);
+        path[1] = REGISTRAR.LINK();
 
         ROUTER.swapExactETHForTokens{value: LINK_ETH}(0, path, address(this), block.timestamp);
         return true;
@@ -309,6 +307,14 @@ contract UniSolid is IAutomation, Ownable {
     // ---- Views ----
 
     /**
+     * @notice LINK token address from the Chainlink registrar
+     */
+    // forge-lint: disable-next-line(mixed-case-function)
+    function LINK() public view returns (IERC20) {
+        return IERC20(REGISTRAR.LINK());
+    }
+
+    /**
      * @notice ETH balance of this contract
      */
     function ethBalance() external view returns (uint256) {
@@ -319,7 +325,7 @@ contract UniSolid is IAutomation, Ownable {
      * @notice LINK balance of this contract
      */
     function linkBalance() external view returns (uint256) {
-        return LINK.balanceOf(address(this));
+        return LINK().balanceOf(address(this));
     }
 
     /**
