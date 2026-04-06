@@ -43,6 +43,7 @@ contract UniSolid is IAutomation, Ownable {
     ISolid public solid;
     address public pair;
     uint256 public upkeepId;
+    address public forwarder;
 
     /**
      * @notice Direction of the arbitrage
@@ -57,6 +58,7 @@ contract UniSolid is IAutomation, Ownable {
     event Swap(ISolid indexed solid, Direction direction, uint256 eth, uint256 profit);
 
     error NoProfitableSwap();
+    error NotForwarder();
 
     /**
      * @param routerLookup Lookup for Uniswap V2 router address
@@ -100,13 +102,12 @@ contract UniSolid is IAutomation, Ownable {
 
     /**
      * @notice Execute the arbitrage and top off LINK if needed
-     * @dev Computes direction and size from current on-chain state.
-     *      Anyone can call this (per Chainlink Automation spec), but the
-     *      on-chain profit check prevents griefing.
+     * @dev Only callable by the Chainlink forwarder or the contract owner.
      *      LINK top-off runs regardless of arb profitability, enabling
      *      bootstrap by simply sending ETH to the contract.
      */
     function performUpkeep(bytes calldata) external override {
+        if (msg.sender != forwarder && msg.sender != owner()) revert NotForwarder();
         bool topped = _topOffLink();
 
         (Direction dir, uint256 eth, uint256 profit) = _quote();
@@ -376,7 +377,7 @@ contract UniSolid is IAutomation, Ownable {
         IERC20 link = LINK();
         link.approve(address(REGISTRAR), amount);
 
-        upkeepId = REGISTRAR.registerUpkeep(
+        uint256 id = REGISTRAR.registerUpkeep(
             IAutomationRegistrar.RegistrationParams({
                 name: "",
                 encryptedEmail: "",
@@ -390,6 +391,10 @@ contract UniSolid is IAutomation, Ownable {
                 amount: amount
             })
         );
+
+        (address registry,) = REGISTRAR.getConfig();
+        forwarder = IAutomationRegistry(registry).getForwarder(id);
+        upkeepId = id;
     }
 
     /**
@@ -400,6 +405,7 @@ contract UniSolid is IAutomation, Ownable {
         IAutomationRegistry(registry).cancelUpkeep(upkeepId);
         IAutomationRegistry(registry).withdrawFunds(upkeepId, address(this));
         upkeepId = 0;
+        forwarder = address(0);
     }
 
     // ---- Owner operations (not Bitsy) ----
