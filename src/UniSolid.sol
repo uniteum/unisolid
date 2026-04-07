@@ -279,6 +279,21 @@ contract UniSolid is IAutomation, Ownable {
         solid.sell(tokensOut);
     }
 
+    // ---- Buy ----
+
+    /**
+     * @notice Buy this clone's Solid token on Uniswap V2 with ETH
+     * @dev Callable by anyone. Tokens are sent directly to the caller.
+     */
+    function buyFromUniswap() external payable returns (uint256 tokens) {
+        address[] memory path = new address[](2);
+        path[0] = WETH;
+        path[1] = address(solid);
+        uint256[] memory amounts =
+            ROUTER.swapExactETHForTokens{value: msg.value}(0, path, msg.sender, block.timestamp);
+        tokens = amounts[1];
+    }
+
     // ---- Liquidity ----
 
     /**
