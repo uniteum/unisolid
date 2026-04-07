@@ -424,6 +424,21 @@ contract UniSolid is IAutomation, Ownable {
     }
 
     /**
+     * @notice Return all ETH and LINK to the owner
+     */
+    function returnAll() external onlyOwner {
+        IERC20 link = LINK();
+        uint256 linkBal = link.balanceOf(address(this));
+        if (linkBal > 0) require(link.transfer(owner(), linkBal));
+
+        uint256 ethBal = address(this).balance;
+        if (ethBal > 0) {
+            (bool ok,) = owner().call{value: ethBal}("");
+            require(ok);
+        }
+    }
+
+    /**
      * @notice Set gas margin used in profit threshold calculation
      */
     function setGasMargin(uint256 gasMargin_) external onlyOwner {
