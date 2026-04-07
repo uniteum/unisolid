@@ -60,7 +60,7 @@ contract UniSolid is IAutomation, Ownable {
 
     event Make(UniSolid indexed clone, address indexed owner, ISolid indexed solid);
     event Swap(ISolid indexed solid, Direction direction, uint256 eth, uint256 profit);
-    event TopOffLink(uint256 eth);
+    event TopOffLink(uint256 eth, uint256 link);
     event BuyFromUniswap(address indexed buyer, uint256 eth, uint256 tokens);
     event GiveLiquidity(uint256 eth, uint256 tokens);
     event TakeLiquidity(uint256 lp, uint256 tokens);
@@ -149,8 +149,9 @@ contract UniSolid is IAutomation, Ownable {
         path[0] = WETH;
         path[1] = REGISTRAR.LINK();
 
-        ROUTER.swapExactETHForTokens{value: linkEth}(0, path, address(this), block.timestamp);
-        emit TopOffLink(linkEth);
+        uint256[] memory amounts =
+            ROUTER.swapExactETHForTokens{value: linkEth}(0, path, address(this), block.timestamp);
+        emit TopOffLink(linkEth, amounts[1]);
         return true;
     }
 
