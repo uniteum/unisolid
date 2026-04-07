@@ -149,8 +149,7 @@ contract UniSolid is IAutomation, Ownable {
         path[0] = WETH;
         path[1] = REGISTRAR.LINK();
 
-        uint256[] memory amounts =
-            ROUTER.swapExactETHForTokens{value: linkEth}(0, path, address(this), block.timestamp);
+        uint256[] memory amounts = ROUTER.swapExactETHForTokens{value: linkEth}(0, path, address(this), block.timestamp);
         emit TopOffLink(linkEth, amounts[1]);
         return true;
     }
@@ -208,11 +207,7 @@ contract UniSolid is IAutomation, Ownable {
     /**
      * @notice Compute profit for Direction A: buy on Solid (no fee), sell on Uniswap (fee)
      */
-    function _profitToUniswap(uint256 e, uint256 S, uint256 E, uint256 T, uint256 W)
-        internal
-        pure
-        returns (uint256)
-    {
+    function _profitToUniswap(uint256 e, uint256 S, uint256 E, uint256 T, uint256 W) internal pure returns (uint256) {
         uint256 tokens = _swap(e, E, S);
         if (tokens == 0) return 0;
         uint256 ethBack = _uniswap(tokens, T, W);
@@ -223,11 +218,7 @@ contract UniSolid is IAutomation, Ownable {
     /**
      * @notice Compute profit for Direction B: buy on Uniswap (fee), sell on Solid (no fee)
      */
-    function _profitFromUniswap(uint256 e, uint256 S, uint256 E, uint256 T, uint256 W)
-        internal
-        pure
-        returns (uint256)
-    {
+    function _profitFromUniswap(uint256 e, uint256 S, uint256 E, uint256 T, uint256 W) internal pure returns (uint256) {
         uint256 tokens = _uniswap(e, W, T);
         if (tokens == 0) return 0;
         uint256 ethBack = _swap(tokens, S, E);
@@ -302,8 +293,7 @@ contract UniSolid is IAutomation, Ownable {
         address[] memory path = new address[](2);
         path[0] = WETH;
         path[1] = address(solid);
-        uint256[] memory amounts =
-            ROUTER.swapExactETHForTokens{value: msg.value}(0, path, msg.sender, block.timestamp);
+        uint256[] memory amounts = ROUTER.swapExactETHForTokens{value: msg.value}(0, path, msg.sender, block.timestamp);
         tokens = amounts[1];
         emit BuyFromUniswap(msg.sender, msg.value, tokens);
     }
@@ -407,7 +397,7 @@ contract UniSolid is IAutomation, Ownable {
 
         uint256 id = REGISTRAR.registerUpkeep(
             IAutomationRegistrar.RegistrationParams({
-                name: "",
+                name: solid.name(),
                 encryptedEmail: "",
                 upkeepContract: address(this),
                 gasLimit: gasLimit,
