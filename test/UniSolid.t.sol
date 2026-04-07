@@ -14,6 +14,7 @@ import {UnswapV2Router01Mock} from "./UnswapV2Router01Mock.sol";
 import {AddressLookupMock} from "./AddressLookupMock.sol";
 import {ERC20Mock} from "./ERC20Mock.sol";
 import {RegistrarMock} from "./RegistrarMock.sol";
+import {RegistryMock} from "./RegistryMock.sol";
 import {Math} from "math/Math.sol";
 
 contract ProfitHarness is UniSolid {
@@ -457,15 +458,16 @@ contract UniSolidTest is BaseTest {
 
     // ---- LINK top-off tests ----
 
-    function _linkClone(uint256 linkMin_, uint256 linkEth_) internal returns (UniSolid) {
+    function _linkClone(uint256 linkMin_, uint256 linkEth_) internal returns (UniSolid clone, RegistryMock registry) {
+        RegistrarMock registrar = new RegistrarMock(address(link));
+        registry = registrar.registry();
         UniSolid p = new UniSolid(
             IAddressLookup(address(new AddressLookupMock(address(router)))),
-            IAddressLookup(address(new AddressLookupMock(address(new RegistrarMock(address(link))))))
+            IAddressLookup(address(new AddressLookupMock(address(registrar))))
         );
-        UniSolid clone = p.make(solid);
+        clone = p.make(solid);
         clone.setLinkMin(linkMin_);
         clone.setLinkEth(linkEth_);
-        return clone;
     }
 
     function _setupArb() internal {
@@ -491,42 +493,58 @@ contract UniSolidTest is BaseTest {
         _setupArb();
         _setupLinkPool(10 ether, 10_000 ether);
 
-        UniSolid linkArb = _linkClone(100 ether, 0.01 ether);
+        (UniSolid linkArb, RegistryMock registry) = _linkClone(100 ether, 0.01 ether);
         vm.deal(address(linkArb), 1 ether);
 
-        // LINK balance is 0, below LINK_MIN — performUpkeep should arb and top off
-        assertEq(link.balanceOf(address(linkArb)), 0);
+        // Register to create upkeep with initial LINK
+        linkArb.register();
+        uint256 upkeepId = linkArb.upkeepId();
+        uint96 balAfterRegister = registry.getBalance(upkeepId);
+        assertGt(balAfterRegister, 0, "upkeep should have LINK after register");
+
+        // Set registry balance to 0 to simulate depletion
+        registry.balances(upkeepId);
+        // Need more ETH for the top-off during performUpkeep
+        vm.deal(address(linkArb), 1 ether);
+        linkArb.setLinkMin(balAfterRegister + 1);
+
+        // performUpkeep should arb and top off
         linkArb.performUpkeep("");
-        assertGt(link.balanceOf(address(linkArb)), 0, "should have acquired LINK");
+        assertGt(registry.getBalance(upkeepId), balAfterRegister, "registry balance should increase after top-off");
     }
 
     function test_LinkTopOffSkipsWhenAboveMin() public {
         _setupArb();
         _setupLinkPool(10 ether, 10_000 ether);
 
-        UniSolid linkArb = _linkClone(100 ether, 0.01 ether);
+        (UniSolid linkArb, RegistryMock registry) = _linkClone(100 ether, 0.01 ether);
         vm.deal(address(linkArb), 1 ether);
 
-        // Pre-fund with enough LINK
-        link.mint(address(linkArb), 200 ether);
-        uint256 linkBefore = link.balanceOf(address(linkArb));
+        // Register to create upkeep
+        linkArb.register();
+        uint256 upkeepId = linkArb.upkeepId();
+        uint96 balBefore = registry.getBalance(upkeepId);
+
+        // linkMin is 100 but registration bought enough — set linkMin below balance
+        linkArb.setLinkMin(1);
+        vm.deal(address(linkArb), 1 ether);
 
         linkArb.performUpkeep("");
-        assertEq(link.balanceOf(address(linkArb)), linkBefore, "should not buy more LINK");
+        assertEq(registry.getBalance(upkeepId), balBefore, "should not add more LINK");
     }
 
     function test_LinkBootstrap() public {
         // No arb set up — only LINK pool exists
         _setupLinkPool(10 ether, 10_000 ether);
 
-        UniSolid linkArb = _linkClone(100 ether, 0.01 ether);
-
-        // Bootstrap: send ETH, no arb exists but performUpkeep succeeds and acquires LINK
+        (UniSolid linkArb, RegistryMock registry) = _linkClone(100 ether, 0.01 ether);
         vm.deal(address(linkArb), 1 ether);
-        assertEq(link.balanceOf(address(linkArb)), 0, "no LINK before bootstrap");
 
-        linkArb.performUpkeep("");
-        assertGt(link.balanceOf(address(linkArb)), 0, "should have LINK after bootstrap");
+        // Register creates upkeep with initial LINK
+        linkArb.register();
+        uint256 upkeepId = linkArb.upkeepId();
+        assertGt(registry.getBalance(upkeepId), 0, "upkeep should have LINK after register");
+        assertEq(link.balanceOf(address(linkArb)), 0, "contract should hold no LINK");
     }
 
     receive() external payable {}

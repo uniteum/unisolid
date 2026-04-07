@@ -132,26 +132,41 @@ contract UniSolid is IAutomation, Ownable {
     }
 
     /**
-     * @notice Check whether LINK balance is below minimum and top-off is possible
+     * @notice Check whether upkeep LINK balance is below minimum and top-off is possible
      */
     function needsLink() public view returns (bool) {
-        return LINK().balanceOf(address(this)) < linkMin && address(this).balance >= linkEth;
+        if (upkeepId == 0 || address(this).balance < linkEth) return false;
+        (address registry,) = REGISTRAR.getConfig();
+        return IAutomationRegistry(registry).getBalance(upkeepId) < linkMin;
     }
 
     /**
-     * @notice Buy LINK from the router if balance is below minimum
-     * @return topped True if LINK was purchased
+     * @notice Buy LINK and add it to the upkeep if balance is below minimum
+     * @return topped True if LINK was added
      */
     function topOffLink() public returns (bool topped) {
         if (!needsLink()) return false;
 
+        uint96 amount = _buyLink();
+        (address registry,) = REGISTRAR.getConfig();
+        IERC20 link = LINK();
+        link.approve(registry, amount);
+        IAutomationRegistry(registry).addFunds(upkeepId, amount);
+        emit TopOffLink(linkEth, amount);
+        return true;
+    }
+
+    /**
+     * @notice Buy LINK from the router with linkEth worth of ETH
+     * @return amount The amount of LINK purchased
+     */
+    function _buyLink() internal returns (uint96 amount) {
         address[] memory path = new address[](2);
         path[0] = WETH;
         path[1] = REGISTRAR.LINK();
 
         uint256[] memory amounts = ROUTER.swapExactETHForTokens{value: linkEth}(0, path, address(this), block.timestamp);
-        emit TopOffLink(linkEth, amounts[1]);
-        return true;
+        amount = uint96(amounts[1]);
     }
 
     uint256 constant UNI_FEE_NUM = 997;
@@ -343,10 +358,12 @@ contract UniSolid is IAutomation, Ownable {
     }
 
     /**
-     * @notice LINK balance of this contract
+     * @notice LINK balance funding this upkeep in the Chainlink registry
      */
-    function linkBalance() external view returns (uint256) {
-        return LINK().balanceOf(address(this));
+    function linkBalance() external view returns (uint96) {
+        if (upkeepId == 0) return 0;
+        (address registry,) = REGISTRAR.getConfig();
+        return IAutomationRegistry(registry).getBalance(upkeepId);
     }
 
     /**
@@ -388,10 +405,11 @@ contract UniSolid is IAutomation, Ownable {
 
     /**
      * @notice Register a Chainlink Automation upkeep for this clone
-     * @param gasLimit Gas limit for performUpkeep execution
-     * @param amount LINK to fund the upkeep (must be held by this contract)
+     * @dev Buys LINK with linkEth worth of ETH and uses it to fund the upkeep.
      */
-    function register(uint32 gasLimit, uint96 amount) external onlyOwner {
+    function register() external onlyOwner {
+        uint96 amount = _buyLink();
+
         IERC20 link = LINK();
         link.approve(address(REGISTRAR), amount);
 
@@ -400,7 +418,9 @@ contract UniSolid is IAutomation, Ownable {
                 name: solid.name(),
                 encryptedEmail: "",
                 upkeepContract: address(this),
-                gasLimit: gasLimit,
+                // casting to uint32 is safe because gasMargin is always set from a uint256 constant < 2^32
+                // forge-lint: disable-next-line(unsafe-typecast)
+                gasLimit: uint32(gasMargin),
                 adminAddress: address(this),
                 triggerType: 0,
                 checkData: "",
@@ -417,12 +437,12 @@ contract UniSolid is IAutomation, Ownable {
     }
 
     /**
-     * @notice Cancel the upkeep and withdraw remaining LINK
+     * @notice Cancel the upkeep and withdraw remaining LINK to the owner
      */
     function unregister() external onlyOwner {
         (address registry,) = REGISTRAR.getConfig();
         IAutomationRegistry(registry).cancelUpkeep(upkeepId);
-        IAutomationRegistry(registry).withdrawFunds(upkeepId, address(this));
+        IAutomationRegistry(registry).withdrawFunds(upkeepId, owner());
         emit Unregister(upkeepId);
         upkeepId = 0;
         forwarder = address(0);
@@ -451,15 +471,11 @@ contract UniSolid is IAutomation, Ownable {
     }
 
     /**
-     * @notice Remove all liquidity, then return all LINK and ETH to the owner
+     * @notice Remove all liquidity and return all ETH to the owner
      */
     function returnAll() external onlyOwner {
         uint256 lp = IERC20(pair).balanceOf(address(this));
         if (lp > 0) takeLiquidity(lp);
-
-        IERC20 link = LINK();
-        uint256 linkBal = link.balanceOf(address(this));
-        if (linkBal > 0) recover(link, linkBal);
 
         uint256 ethBal = address(this).balance;
         if (ethBal > 0) withdraw(ethBal);
