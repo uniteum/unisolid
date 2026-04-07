@@ -92,7 +92,7 @@ contract UniSolid is IAutomation, Ownable {
      */
     function checkUpkeep(bytes calldata) external view override returns (bool upkeepNeeded, bytes memory performData) {
         (Direction dir,,) = _quote();
-        return (dir != Direction.None || _needsLink(), "");
+        return (dir != Direction.None || needsLink(), "");
     }
 
     /**
@@ -103,7 +103,7 @@ contract UniSolid is IAutomation, Ownable {
      */
     function performUpkeep(bytes calldata) external override {
         if (msg.sender != forwarder && msg.sender != owner()) revert NotForwarder();
-        bool topped = _topOffLink();
+        bool topped = topOffLink();
 
         (Direction dir, uint256 eth, uint256 profit) = _quote();
         if (dir == Direction.None) {
@@ -123,7 +123,7 @@ contract UniSolid is IAutomation, Ownable {
     /**
      * @notice Check whether LINK balance is below minimum and top-off is possible
      */
-    function _needsLink() internal view returns (bool) {
+    function needsLink() public view returns (bool) {
         return LINK().balanceOf(address(this)) < linkMin && address(this).balance >= linkEth;
     }
 
@@ -131,8 +131,8 @@ contract UniSolid is IAutomation, Ownable {
      * @notice Buy LINK from the router if balance is below minimum
      * @return topped True if LINK was purchased
      */
-    function _topOffLink() internal returns (bool topped) {
-        if (!_needsLink()) return false;
+    function topOffLink() public returns (bool topped) {
+        if (!needsLink()) return false;
 
         address[] memory path = new address[](2);
         path[0] = WETH;
