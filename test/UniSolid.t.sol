@@ -20,11 +20,11 @@ contract ProfitHarness is UniSolid {
     constructor(IAddressLookup routerLookup, IAddressLookup registrarLookup) UniSolid(routerLookup, registrarLookup) {}
 
     function profitA(uint256 x, uint256 S, uint256 E, uint256 T, uint256 W) external pure returns (uint256) {
-        return _profitSolidToUniswap(x, S, E, T, W);
+        return _profitToUniswap(x, S, E, T, W);
     }
 
     function profitB(uint256 x, uint256 S, uint256 E, uint256 T, uint256 W) external pure returns (uint256) {
-        return _profitUniswapToSolid(x, S, E, T, W);
+        return _profitFromUniswap(x, S, E, T, W);
     }
 }
 

@@ -54,8 +54,8 @@ contract UniSolid is IAutomation, Ownable {
      */
     enum Direction {
         None,
-        SolidToUniswap,
-        UniswapToSolid
+        ToUniswap,
+        FromUniswap
     }
 
     event Make(UniSolid indexed clone, address indexed owner, ISolid indexed solid);
@@ -111,10 +111,10 @@ contract UniSolid is IAutomation, Ownable {
             return;
         }
 
-        if (dir == Direction.SolidToUniswap) {
-            _arbSolidToUniswap(eth);
+        if (dir == Direction.ToUniswap) {
+            _arbToUniswap(eth);
         } else {
-            _arbUniswapToSolid(eth);
+            _arbFromUniswap(eth);
         }
 
         emit Swap(solid, dir, eth, profit);
@@ -173,8 +173,8 @@ contract UniSolid is IAutomation, Ownable {
                 eth = (root - te) / (T + fS);
                 if (eth > balance) eth = balance;
                 if (eth > 0) {
-                    profit = _profitSolidToUniswap(eth, S, E, T, W);
-                    dir = Direction.SolidToUniswap;
+                    profit = _profitToUniswap(eth, S, E, T, W);
+                    dir = Direction.ToUniswap;
                 }
             }
         } else {
@@ -183,8 +183,8 @@ contract UniSolid is IAutomation, Ownable {
                 eth = (root - sw) / (fS + fT);
                 if (eth > balance) eth = balance;
                 if (eth > 0) {
-                    profit = _profitUniswapToSolid(eth, S, E, T, W);
-                    dir = Direction.UniswapToSolid;
+                    profit = _profitFromUniswap(eth, S, E, T, W);
+                    dir = Direction.FromUniswap;
                 }
             }
         }
@@ -195,7 +195,7 @@ contract UniSolid is IAutomation, Ownable {
     /**
      * @notice Compute profit for Direction A: buy on Solid (no fee), sell on Uniswap (fee)
      */
-    function _profitSolidToUniswap(uint256 e, uint256 S, uint256 E, uint256 T, uint256 W)
+    function _profitToUniswap(uint256 e, uint256 S, uint256 E, uint256 T, uint256 W)
         internal
         pure
         returns (uint256)
@@ -210,7 +210,7 @@ contract UniSolid is IAutomation, Ownable {
     /**
      * @notice Compute profit for Direction B: buy on Uniswap (fee), sell on Solid (no fee)
      */
-    function _profitUniswapToSolid(uint256 e, uint256 S, uint256 E, uint256 T, uint256 W)
+    function _profitFromUniswap(uint256 e, uint256 S, uint256 E, uint256 T, uint256 W)
         internal
         pure
         returns (uint256)
@@ -253,7 +253,7 @@ contract UniSolid is IAutomation, Ownable {
     /**
      * @notice Execute: buy on Solid (ETH → tokens), sell on Uniswap (tokens → ETH)
      */
-    function _arbSolidToUniswap(uint256 eth) internal {
+    function _arbToUniswap(uint256 eth) internal {
         uint256 tokensOut = solid.buy{value: eth}();
 
         IERC20(address(solid)).approve(address(ROUTER), tokensOut);
@@ -268,7 +268,7 @@ contract UniSolid is IAutomation, Ownable {
     /**
      * @notice Execute: buy on Uniswap (ETH → tokens), sell on Solid (tokens → ETH)
      */
-    function _arbUniswapToSolid(uint256 eth) internal {
+    function _arbFromUniswap(uint256 eth) internal {
         address[] memory path = new address[](2);
         path[0] = WETH;
         path[1] = address(solid);
