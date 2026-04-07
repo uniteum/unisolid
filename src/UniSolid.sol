@@ -60,6 +60,17 @@ contract UniSolid is IAutomation, Ownable {
 
     event Make(UniSolid indexed clone, address indexed owner, ISolid indexed solid);
     event Swap(ISolid indexed solid, Direction direction, uint256 eth, uint256 profit);
+    event TopOffLink(uint256 eth);
+    event BuyFromUniswap(address indexed buyer, uint256 eth, uint256 tokens);
+    event GiveLiquidity(uint256 eth, uint256 tokens);
+    event TakeLiquidity(uint256 lp, uint256 tokens);
+    event Register(uint256 upkeepId, address forwarder);
+    event Unregister(uint256 upkeepId);
+    event Withdraw(uint256 amount);
+    event Recover(IERC20 indexed token, uint256 amount);
+    event SetGasMargin(uint256 gasMargin);
+    event SetLinkMin(uint256 linkMin);
+    event SetLinkEth(uint256 linkEth);
 
     error NoProfitableSwap();
     error NotForwarder();
@@ -139,6 +150,7 @@ contract UniSolid is IAutomation, Ownable {
         path[1] = REGISTRAR.LINK();
 
         ROUTER.swapExactETHForTokens{value: linkEth}(0, path, address(this), block.timestamp);
+        emit TopOffLink(linkEth);
         return true;
     }
 
@@ -292,6 +304,7 @@ contract UniSolid is IAutomation, Ownable {
         uint256[] memory amounts =
             ROUTER.swapExactETHForTokens{value: msg.value}(0, path, msg.sender, block.timestamp);
         tokens = amounts[1];
+        emit BuyFromUniswap(msg.sender, msg.value, tokens);
     }
 
     // ---- Liquidity ----
@@ -305,6 +318,7 @@ contract UniSolid is IAutomation, Ownable {
         uint256 tokens = solid.buy{value: half}();
         IERC20(address(solid)).approve(address(ROUTER), tokens);
         ROUTER.addLiquidityETH{value: eth - half}(address(solid), tokens, 0, 0, address(this), block.timestamp);
+        emit GiveLiquidity(eth, tokens);
     }
 
     /**
@@ -315,6 +329,7 @@ contract UniSolid is IAutomation, Ownable {
         IERC20(pair).approve(address(ROUTER), n);
         (uint256 amountToken,) = ROUTER.removeLiquidityETH(address(solid), n, 0, 0, address(this), block.timestamp);
         solid.sell(amountToken);
+        emit TakeLiquidity(n, amountToken);
     }
 
     // ---- Views ----
@@ -405,6 +420,7 @@ contract UniSolid is IAutomation, Ownable {
         (address registry,) = REGISTRAR.getConfig();
         forwarder = IAutomationRegistry(registry).getForwarder(id);
         upkeepId = id;
+        emit Register(id, forwarder);
     }
 
     /**
@@ -414,6 +430,7 @@ contract UniSolid is IAutomation, Ownable {
         (address registry,) = REGISTRAR.getConfig();
         IAutomationRegistry(registry).cancelUpkeep(upkeepId);
         IAutomationRegistry(registry).withdrawFunds(upkeepId, address(this));
+        emit Unregister(upkeepId);
         upkeepId = 0;
         forwarder = address(0);
     }
@@ -427,6 +444,7 @@ contract UniSolid is IAutomation, Ownable {
     function withdraw(uint256 amount) public onlyOwner {
         (bool ok,) = owner().call{value: amount}("");
         require(ok);
+        emit Withdraw(amount);
     }
 
     /**
@@ -436,6 +454,7 @@ contract UniSolid is IAutomation, Ownable {
      */
     function recover(IERC20 token, uint256 amount) public onlyOwner {
         require(token.transfer(owner(), amount));
+        emit Recover(token, amount);
     }
 
     /**
@@ -458,6 +477,7 @@ contract UniSolid is IAutomation, Ownable {
      */
     function setGasMargin(uint256 gasMargin_) external onlyOwner {
         gasMargin = gasMargin_;
+        emit SetGasMargin(gasMargin_);
     }
 
     /**
@@ -465,6 +485,7 @@ contract UniSolid is IAutomation, Ownable {
      */
     function setLinkMin(uint256 linkMin_) external onlyOwner {
         linkMin = linkMin_;
+        emit SetLinkMin(linkMin_);
     }
 
     /**
@@ -472,6 +493,7 @@ contract UniSolid is IAutomation, Ownable {
      */
     function setLinkEth(uint256 linkEth_) external onlyOwner {
         linkEth = linkEth_;
+        emit SetLinkEth(linkEth_);
     }
 
     // ---- Factory (Bitsy) ----
