@@ -18,6 +18,7 @@ contract RegistrarMock {
 
     function registerUpkeep(IAutomationRegistrar.RegistrationParams calldata params) external returns (uint256) {
         // Pull LINK from caller (mirrors real registrar behavior)
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         IERC20(LINK).transferFrom(msg.sender, address(this), params.amount);
         IERC20(LINK).approve(address(registry), params.amount);
         return registry.register(params.upkeepContract, params.amount);

@@ -18,6 +18,7 @@ contract RegistryMock {
     }
 
     function addFunds(uint256 id, uint96 amount) external {
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         IERC20(link).transferFrom(msg.sender, address(this), amount);
         balances[id] += amount;
     }
@@ -31,11 +32,13 @@ contract RegistryMock {
     function withdrawFunds(uint256 id, address to) external {
         uint96 bal = balances[id];
         balances[id] = 0;
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         IERC20(link).transfer(to, bal);
     }
 
     function register(address, uint96 amount) external returns (uint256 id) {
         id = nextId++;
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
         IERC20(link).transferFrom(msg.sender, address(this), amount);
         balances[id] = amount;
         forwarders[id] = address(uint160(uint256(keccak256(abi.encode("forwarder", id)))));
