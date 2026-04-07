@@ -62,8 +62,8 @@ contract UniSolid is IAutomation, Ownable {
     event Swap(ISolid indexed solid, Direction direction, uint256 eth, uint256 profit);
     event TopOffLink(uint256 eth, uint256 link);
     event BuyFromUniswap(address indexed buyer, uint256 eth, uint256 tokens);
-    event GiveLiquidity(uint256 eth, uint256 tokens);
-    event TakeLiquidity(uint256 lp, uint256 tokens);
+    event GiveLiquidity(uint256 amountToken, uint256 amountEth, uint256 liquidity);
+    event TakeLiquidity(uint256 amountToken, uint256 amountEth, uint256 liquidity);
     event Register(uint256 upkeepId, address forwarder);
     event Unregister(uint256 upkeepId);
     event Withdraw(uint256 amount);
@@ -318,8 +318,9 @@ contract UniSolid is IAutomation, Ownable {
         uint256 half = eth / 2;
         uint256 tokens = solid.buy{value: half}();
         IERC20(address(solid)).approve(address(ROUTER), tokens);
-        ROUTER.addLiquidityETH{value: eth - half}(address(solid), tokens, 0, 0, address(this), block.timestamp);
-        emit GiveLiquidity(eth, tokens);
+        (uint256 amountToken, uint256 amountEth, uint256 liquidity) =
+            ROUTER.addLiquidityETH{value: eth - half}(address(solid), tokens, 0, 0, address(this), block.timestamp);
+        emit GiveLiquidity(amountToken, amountEth, liquidity);
     }
 
     /**
@@ -328,9 +329,10 @@ contract UniSolid is IAutomation, Ownable {
      */
     function takeLiquidity(uint256 n) public onlyOwner {
         IERC20(pair).approve(address(ROUTER), n);
-        (uint256 amountToken,) = ROUTER.removeLiquidityETH(address(solid), n, 0, 0, address(this), block.timestamp);
+        (uint256 amountToken, uint256 amountEth) =
+            ROUTER.removeLiquidityETH(address(solid), n, 0, 0, address(this), block.timestamp);
         solid.sell(amountToken);
-        emit TakeLiquidity(n, amountToken);
+        emit TakeLiquidity(amountToken, amountEth, n);
     }
 
     // ---- Views ----
