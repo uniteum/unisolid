@@ -296,7 +296,7 @@ contract UniSolid is IAutomation, Ownable {
      * @notice Remove Uniswap LP and convert back to ETH: remove liquidity, sell Solid tokens
      * @param n Amount of LP tokens to convert (contract must hold at least this many)
      */
-    function takeLiquidity(uint256 n) external onlyOwner {
+    function takeLiquidity(uint256 n) public onlyOwner {
         IERC20(pair).approve(address(ROUTER), n);
         (uint256 amountToken,) = ROUTER.removeLiquidityETH(address(solid), n, 0, 0, address(this), block.timestamp);
         solid.sell(amountToken);
@@ -409,7 +409,7 @@ contract UniSolid is IAutomation, Ownable {
      * @notice Withdraw ETH from the contract
      * @param amount Amount of ETH to withdraw
      */
-    function withdraw(uint256 amount) external onlyOwner {
+    function withdraw(uint256 amount) public onlyOwner {
         (bool ok,) = owner().call{value: amount}("");
         require(ok);
     }
@@ -419,23 +419,23 @@ contract UniSolid is IAutomation, Ownable {
      * @param token The token to recover
      * @param amount Amount to recover
      */
-    function recover(IERC20 token, uint256 amount) external onlyOwner {
+    function recover(IERC20 token, uint256 amount) public onlyOwner {
         require(token.transfer(owner(), amount));
     }
 
     /**
-     * @notice Return all ETH and LINK to the owner
+     * @notice Remove all liquidity, then return all LINK and ETH to the owner
      */
     function returnAll() external onlyOwner {
+        uint256 lp = IERC20(pair).balanceOf(address(this));
+        if (lp > 0) takeLiquidity(lp);
+
         IERC20 link = LINK();
         uint256 linkBal = link.balanceOf(address(this));
-        if (linkBal > 0) require(link.transfer(owner(), linkBal));
+        if (linkBal > 0) recover(link, linkBal);
 
         uint256 ethBal = address(this).balance;
-        if (ethBal > 0) {
-            (bool ok,) = owner().call{value: ethBal}("");
-            require(ok);
-        }
+        if (ethBal > 0) withdraw(ethBal);
     }
 
     /**
