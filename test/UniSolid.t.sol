@@ -17,9 +17,7 @@ import {RegistrarMock} from "./RegistrarMock.sol";
 import {Math} from "math/Math.sol";
 
 contract ProfitHarness is UniSolid {
-    constructor(IAddressLookup routerLookup, IAddressLookup registrarLookup)
-        UniSolid(routerLookup, registrarLookup, 0, 0, 0)
-    {}
+    constructor(IAddressLookup routerLookup, IAddressLookup registrarLookup) UniSolid(routerLookup, registrarLookup) {}
 
     function profitA(uint256 x, uint256 S, uint256 E, uint256 T, uint256 W) external pure returns (uint256) {
         return _profitSolidToUniswap(x, S, E, T, W);
@@ -53,8 +51,10 @@ contract UniSolidTest is BaseTest {
 
         AddressLookupMock lookup = new AddressLookupMock(address(router));
         AddressLookupMock registrarLookup = new AddressLookupMock(address(new RegistrarMock(address(link))));
-        proto = new UniSolid(IAddressLookup(address(lookup)), IAddressLookup(address(registrarLookup)), 0, 0, 0);
+        proto = new UniSolid(IAddressLookup(address(lookup)), IAddressLookup(address(registrarLookup)));
         arb = proto.make(solid);
+        arb.setGasMargin(0);
+        arb.setLinkMin(0);
         harness = new ProfitHarness(IAddressLookup(address(lookup)), IAddressLookup(address(registrarLookup)));
     }
 
@@ -174,15 +174,14 @@ contract UniSolidTest is BaseTest {
         // forge-lint: disable-next-line(erc20-unchecked-transfer)
         solid.transfer(address(router), tokens);
 
-        // Deploy a proto with impossibly high threshold
+        // Deploy a clone with impossibly high gas margin threshold
         UniSolid highProto = new UniSolid(
             IAddressLookup(address(new AddressLookupMock(address(router)))),
-            IAddressLookup(address(new AddressLookupMock(address(new RegistrarMock(address(link)))))),
-            10_000_000,
-            0,
-            0
+            IAddressLookup(address(new AddressLookupMock(address(new RegistrarMock(address(link))))))
         );
         UniSolid highArb = highProto.make(solid);
+        highArb.setGasMargin(10_000_000);
+        highArb.setLinkMin(0);
         vm.deal(address(highArb), 1 ether);
 
         vm.txGasPrice(1000 gwei);
@@ -458,14 +457,15 @@ contract UniSolidTest is BaseTest {
 
     // ---- LINK top-off tests ----
 
-    function _linkProto(uint256 linkMin, uint256 linkEth) internal returns (UniSolid) {
-        return new UniSolid(
+    function _linkClone(uint256 linkMin_, uint256 linkEth_) internal returns (UniSolid) {
+        UniSolid p = new UniSolid(
             IAddressLookup(address(new AddressLookupMock(address(router)))),
-            IAddressLookup(address(new AddressLookupMock(address(new RegistrarMock(address(link)))))),
-            0,
-            linkMin,
-            linkEth
+            IAddressLookup(address(new AddressLookupMock(address(new RegistrarMock(address(link))))))
         );
+        UniSolid clone = p.make(solid);
+        clone.setLinkMin(linkMin_);
+        clone.setLinkEth(linkEth_);
+        return clone;
     }
 
     function _setupArb() internal {
@@ -491,8 +491,7 @@ contract UniSolidTest is BaseTest {
         _setupArb();
         _setupLinkPool(10 ether, 10_000 ether);
 
-        UniSolid linkProto = _linkProto(100 ether, 0.01 ether);
-        UniSolid linkArb = linkProto.make(solid);
+        UniSolid linkArb = _linkClone(100 ether, 0.01 ether);
         vm.deal(address(linkArb), 1 ether);
 
         // LINK balance is 0, below LINK_MIN — performUpkeep should arb and top off
@@ -505,8 +504,7 @@ contract UniSolidTest is BaseTest {
         _setupArb();
         _setupLinkPool(10 ether, 10_000 ether);
 
-        UniSolid linkProto = _linkProto(100 ether, 0.01 ether);
-        UniSolid linkArb = linkProto.make(solid);
+        UniSolid linkArb = _linkClone(100 ether, 0.01 ether);
         vm.deal(address(linkArb), 1 ether);
 
         // Pre-fund with enough LINK
@@ -521,8 +519,7 @@ contract UniSolidTest is BaseTest {
         // No arb set up — only LINK pool exists
         _setupLinkPool(10 ether, 10_000 ether);
 
-        UniSolid linkProto = _linkProto(100 ether, 0.01 ether);
-        UniSolid linkArb = linkProto.make(solid);
+        UniSolid linkArb = _linkClone(100 ether, 0.01 ether);
 
         // Bootstrap: send ETH, no arb exists but performUpkeep succeeds and acquires LINK
         vm.deal(address(linkArb), 1 ether);

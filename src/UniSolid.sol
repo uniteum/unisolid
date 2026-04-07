@@ -32,18 +32,22 @@ import {Ownable} from "ownable/Ownable.sol";
  * reserves, maximizing net ETH profit.
  */
 contract UniSolid is IAutomation, Ownable {
+    uint256 constant GAS_MARGIN = 450_000;
+    uint256 constant LINK_MIN = 1 ether;
+    uint256 constant LINK_ETH = 0.01 ether;
+
     UniSolid public immutable PROTO = this;
     IUniswapV2Router01 public immutable ROUTER;
     address public immutable WETH;
     IAutomationRegistrar public immutable REGISTRAR;
-    uint256 public immutable GAS_MARGIN;
-    uint256 public immutable LINK_MIN;
-    uint256 public immutable LINK_ETH;
 
     ISolid public solid;
     address public pair;
     uint256 public upkeepId;
     address public forwarder;
+    uint256 public gasMargin;
+    uint256 public linkMin;
+    uint256 public linkEth;
 
     /**
      * @notice Direction of the arbitrage
@@ -63,23 +67,14 @@ contract UniSolid is IAutomation, Ownable {
     /**
      * @param routerLookup Lookup for Uniswap V2 router address
      * @param registrarLookup Lookup for chain-local Chainlink Automation registrar address
-     * @param gasMargin Gas estimate × margin multiplier (e.g. 300_000 × 1.5 = 450_000)
-     * @param linkMin Minimum LINK balance before top-off triggers
-     * @param linkEth Amount of ETH to spend topping off LINK
      */
-    constructor(
-        IAddressLookup routerLookup,
-        IAddressLookup registrarLookup,
-        uint256 gasMargin,
-        uint256 linkMin,
-        uint256 linkEth
-    ) Ownable(address(this)) {
+    constructor(IAddressLookup routerLookup, IAddressLookup registrarLookup) Ownable(address(this)) {
         ROUTER = IUniswapV2Router01(routerLookup.value());
         WETH = ROUTER.WETH();
         REGISTRAR = IAutomationRegistrar(registrarLookup.value());
-        GAS_MARGIN = gasMargin;
-        LINK_MIN = linkMin;
-        LINK_ETH = linkEth;
+        gasMargin = GAS_MARGIN;
+        linkMin = LINK_MIN;
+        linkEth = LINK_ETH;
     }
 
     receive() external payable {
@@ -129,7 +124,7 @@ contract UniSolid is IAutomation, Ownable {
      * @notice Check whether LINK balance is below minimum and top-off is possible
      */
     function _needsLink() internal view returns (bool) {
-        return LINK().balanceOf(address(this)) < LINK_MIN && address(this).balance >= LINK_ETH;
+        return LINK().balanceOf(address(this)) < linkMin && address(this).balance >= linkEth;
     }
 
     /**
@@ -143,7 +138,7 @@ contract UniSolid is IAutomation, Ownable {
         path[0] = WETH;
         path[1] = REGISTRAR.LINK();
 
-        ROUTER.swapExactETHForTokens{value: LINK_ETH}(0, path, address(this), block.timestamp);
+        ROUTER.swapExactETHForTokens{value: linkEth}(0, path, address(this), block.timestamp);
         return true;
     }
 
@@ -194,7 +189,7 @@ contract UniSolid is IAutomation, Ownable {
             }
         }
 
-        if (profit < GAS_MARGIN * tx.gasprice) return (Direction.None, 0, 0);
+        if (profit < gasMargin * tx.gasprice) return (Direction.None, 0, 0);
     }
 
     /**
@@ -428,6 +423,27 @@ contract UniSolid is IAutomation, Ownable {
         require(token.transfer(owner(), amount));
     }
 
+    /**
+     * @notice Set gas margin used in profit threshold calculation
+     */
+    function setGasMargin(uint256 gasMargin_) external onlyOwner {
+        gasMargin = gasMargin_;
+    }
+
+    /**
+     * @notice Set minimum LINK balance before top-off triggers
+     */
+    function setLinkMin(uint256 linkMin_) external onlyOwner {
+        linkMin = linkMin_;
+    }
+
+    /**
+     * @notice Set amount of ETH to spend topping off LINK
+     */
+    function setLinkEth(uint256 linkEth_) external onlyOwner {
+        linkEth = linkEth_;
+    }
+
     // ---- Factory (Bitsy) ----
 
     /**
@@ -478,5 +494,8 @@ contract UniSolid is IAutomation, Ownable {
         _transferOwnership(owner_);
         solid = solid_;
         pair = pair_;
+        gasMargin = GAS_MARGIN;
+        linkMin = LINK_MIN;
+        linkEth = LINK_ETH;
     }
 }

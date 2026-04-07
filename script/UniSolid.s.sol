@@ -14,19 +14,13 @@ import {IAddressLookup} from "ilookup/IAddressLookup.sol";
  *   ChainlinkRegistrarLookup — Chainlink Automation Registrar AddressLookup
  */
 contract UniSolidDeploy is Script {
-    uint256 constant GAS_MARGIN = 450_000;
-    uint256 constant LINK_MIN = 1 ether;
-    uint256 constant LINK_ETH = 0.01 ether;
-
     function run() external {
         address routerLookup = vm.envAddress("UniswapV2RouterLookup");
         address registrarLookup = vm.envAddress("ChainlinkRegistrarLookup");
 
         vm.startBroadcast();
 
-        UniSolid unisolid = new UniSolid{salt: 0x0}(
-            IAddressLookup(routerLookup), IAddressLookup(registrarLookup), GAS_MARGIN, LINK_MIN, LINK_ETH
-        );
+        UniSolid unisolid = new UniSolid{salt: 0x0}(IAddressLookup(routerLookup), IAddressLookup(registrarLookup));
         console2.log("UniSolid protofactory deployed at:", address(unisolid));
 
         vm.stopBroadcast();
