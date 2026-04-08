@@ -137,7 +137,7 @@ contract UniSolid is IAutomation, Ownable {
      * @notice Check whether upkeep LINK balance is below minimum and top-off is possible
      */
     function needsLink() public view returns (bool) {
-        if (upkeepId == 0 || address(this).balance < linkEth) return false;
+        if (forwarder == address(0) || address(this).balance < linkEth) return false;
         (address registry,) = REGISTRAR.getConfig();
         return IAutomationRegistry(registry).getBalance(upkeepId) < linkMin;
     }
@@ -446,6 +446,7 @@ contract UniSolid is IAutomation, Ownable {
         if (upkeepId == 0) revert NotRegistered();
         (address registry,) = REGISTRAR.getConfig();
         IAutomationRegistry(registry).cancelUpkeep(upkeepId);
+        forwarder = address(0);
     }
 
     /**
