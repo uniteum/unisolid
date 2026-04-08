@@ -547,5 +547,94 @@ contract UniSolidTest is BaseTest {
         assertEq(link.balanceOf(address(linkArb)), 0, "contract should hold no LINK");
     }
 
+    // ---- Upkeep lifecycle tests ----
+
+    function test_RegisterRevertsIfAlreadyRegistered() public {
+        _setupLinkPool(10 ether, 10_000 ether);
+
+        (UniSolid clone,) = _linkClone(1 ether, 0.01 ether);
+        vm.deal(address(clone), 1 ether);
+
+        clone.register();
+        assertTrue(clone.upkeepId() != 0, "should be registered");
+
+        vm.expectRevert(UniSolid.AlreadyRegistered.selector);
+        clone.register();
+    }
+
+    function test_CancelRevertsIfNotRegistered() public {
+        vm.expectRevert(UniSolid.NotRegistered.selector);
+        arb.cancel();
+    }
+
+    function test_UnregisterRevertsIfNotRegistered() public {
+        vm.expectRevert(UniSolid.NotRegistered.selector);
+        arb.unregister();
+    }
+
+    function test_CancelClearsForwarder() public {
+        _setupLinkPool(10 ether, 10_000 ether);
+
+        (UniSolid clone,) = _linkClone(1 ether, 0.01 ether);
+        vm.deal(address(clone), 1 ether);
+
+        clone.register();
+        assertTrue(clone.forwarder() != address(0), "forwarder should be set");
+        assertTrue(clone.upkeepId() != 0, "upkeepId should be set");
+
+        clone.cancel();
+        assertEq(clone.forwarder(), address(0), "forwarder should be cleared");
+        assertTrue(clone.upkeepId() != 0, "upkeepId should remain until unregister");
+    }
+
+    function test_UnregisterClearsUpkeepId() public {
+        _setupLinkPool(10 ether, 10_000 ether);
+
+        (UniSolid clone,) = _linkClone(1 ether, 0.01 ether);
+        vm.deal(address(clone), 1 ether);
+
+        clone.register();
+        clone.cancel();
+        clone.unregister();
+
+        assertEq(clone.upkeepId(), 0, "upkeepId should be cleared");
+        assertEq(clone.forwarder(), address(0), "forwarder should be cleared");
+    }
+
+    function test_ReRegisterAfterUnregister() public {
+        _setupLinkPool(10 ether, 10_000 ether);
+
+        (UniSolid clone,) = _linkClone(1 ether, 0.01 ether);
+        vm.deal(address(clone), 2 ether);
+
+        clone.register();
+        uint256 firstId = clone.upkeepId();
+
+        clone.cancel();
+        clone.unregister();
+
+        clone.register();
+        assertTrue(clone.upkeepId() != 0, "should be registered again");
+        assertTrue(clone.upkeepId() != firstId, "should have new upkeep ID");
+        assertTrue(clone.forwarder() != address(0), "forwarder should be set");
+    }
+
+    function test_NeedsLinkFalseAfterCancel() public {
+        _setupLinkPool(10 ether, 10_000 ether);
+
+        (UniSolid clone, RegistryMock registry) = _linkClone(100 ether, 0.01 ether);
+        vm.deal(address(clone), 1 ether);
+
+        clone.register();
+        uint256 upkeepId = clone.upkeepId();
+
+        // Set linkMin above balance to trigger needsLink
+        clone.setLinkMin(registry.getBalance(upkeepId) + 1);
+        assertTrue(clone.needsLink(), "should need LINK before cancel");
+
+        clone.cancel();
+        assertFalse(clone.needsLink(), "should not need LINK after cancel");
+    }
+
     receive() external payable {}
 }
