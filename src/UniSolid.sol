@@ -74,6 +74,8 @@ contract UniSolid is IAutomation, Ownable {
 
     error NoProfitableSwap();
     error NotForwarder();
+    error NotRegistered();
+    error AlreadyRegistered();
 
     /**
      * @param routerLookup Lookup for Uniswap V2 router address
@@ -408,6 +410,7 @@ contract UniSolid is IAutomation, Ownable {
      * @dev Buys LINK with linkEth worth of ETH and uses it to fund the upkeep.
      */
     function register() external onlyOwner {
+        if (upkeepId != 0) revert AlreadyRegistered();
         uint96 amount = _buyLink();
 
         IERC20 link = LINK();
@@ -437,11 +440,20 @@ contract UniSolid is IAutomation, Ownable {
     }
 
     /**
-     * @notice Cancel the upkeep and withdraw remaining LINK to the owner
+     * @notice Cancel the upkeep (must wait 50 blocks before calling unregister)
      */
-    function unregister() external onlyOwner {
+    function cancel() external onlyOwner {
+        if (upkeepId == 0) revert NotRegistered();
         (address registry,) = REGISTRAR.getConfig();
         IAutomationRegistry(registry).cancelUpkeep(upkeepId);
+    }
+
+    /**
+     * @notice Withdraw remaining LINK after the upkeep has been canceled
+     */
+    function unregister() external onlyOwner {
+        if (upkeepId == 0) revert NotRegistered();
+        (address registry,) = REGISTRAR.getConfig();
         IAutomationRegistry(registry).withdrawFunds(upkeepId, owner());
         emit Unregister(upkeepId);
         upkeepId = 0;
